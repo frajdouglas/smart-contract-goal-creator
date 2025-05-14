@@ -7,6 +7,7 @@ import { Wallet, AlertCircle, LogIn, LogOut } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/components/providers/auth-provider"
 import { useToast } from "@/hooks/use-toast"
+import { useSDK, MetaMaskProvider } from "@metamask/sdk-react";
 
 export function ConnectWallet() {
   const { walletAddress, connectWallet, disconnectWallet, user, signIn, signOut } = useAuth()
@@ -14,6 +15,27 @@ export function ConnectWallet() {
   const [isSigningIn, setIsSigningIn] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
+
+  const { sdk, connected, connecting, account } = useSDK();
+
+
+console.log(sdk, connected, connecting, account)
+
+  const connect = async () => {
+    try {
+      await sdk?.connect();
+          console.log('connect fired')
+
+    } catch (err) {
+      console.warn(`No accounts found`, err);
+    }
+  };
+
+  const disconnect = () => {
+    if (sdk) {
+      sdk.terminate();
+    }
+  };
 
   // Check if ethereum is available
   const isEthereumAvailable = typeof window !== "undefined" && window.ethereum !== undefined
@@ -131,10 +153,10 @@ export function ConnectWallet() {
                 </Button>
               </div>
             ) : (
-              <Button className="w-full" onClick={handleConnectWallet} disabled={isConnecting}>
-                <Wallet className="mr-2 h-4 w-4" />
-                {isConnecting ? "Connecting..." : "Connect Wallet"}
-              </Button>
+                <Button className="w-full" onClick={connect} disabled={isConnecting}>
+                  <Wallet className="mr-2 h-4 w-4" />
+                  {isConnecting ? "Connecting..." : "Connect Wallet"}
+                </Button>
             )}
           </div>
         )}

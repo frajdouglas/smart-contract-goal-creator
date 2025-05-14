@@ -8,13 +8,28 @@ import { GoalList } from "@/components/goal-list"
 import { ConnectWallet } from "@/components/connect-wallet"
 import { Badge } from "@/components/ui/badge"
 import type { Goal } from "@/types/database"
+import { MetaMaskProvider } from "@metamask/sdk-react";
 
 interface HomePageProps {
   recentGoals?: Goal[]
 }
-
+const host =
+    typeof window !== "undefined" ? window.location.host : "defaultHost";
+console.log(host)
+  const sdkOptions = {
+    logging: { developerMode: false },
+    checkInstallationImmediately: false,
+    dappMetadata: {
+      name: "Next-Metamask-Boilerplate",
+      url: host, // using the host constant defined above
+    },
+  };
 // Changed to a client component with props
 export default function HomePage({ recentGoals = [] }: HomePageProps): React.ReactNode {
+
+
+
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex flex-col items-center justify-center space-y-8">
@@ -26,7 +41,11 @@ export default function HomePage({ recentGoals = [] }: HomePageProps): React.Rea
         </div>
 
         <div className="w-full max-w-md">
+                  <MetaMaskProvider debug={false} sdkOptions={sdkOptions}>
+
           <ConnectWallet />
+                  </MetaMaskProvider>
+
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl">
