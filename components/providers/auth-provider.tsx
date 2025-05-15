@@ -1,10 +1,9 @@
 "use client";
 
 import type React from "react";
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useState } from "react";
 import { ethers } from "ethers";
-import { useRouter } from "next/navigation";
-import { deleteCookie, getCookie } from "cookies-next";
+import { deleteCookie } from "cookies-next";
 import { useSDK } from "@metamask/sdk-react"; // Import useSDK
 import { postPublicAddress } from "@/lib/api/postPublicAddress";
 import { verifySignature } from "@/lib/api/verifySignature";
@@ -30,7 +29,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isSignInLoading, setIsSignInLoading] = useState(false);
   const [isWalletConnecting, setIsWalletConnecting] = useState(false);
 
-  const { sdk, connected, account } = useSDK(); // Get SDK states
+  const { sdk, account } = useSDK();
 
   const connectWallet = async (): Promise<void> => {
     if (sdk) {
@@ -59,8 +58,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const resetAuthState = () => {
-    setWalletAddress(null);
-    localStorage.removeItem('walletAddress');
     setIsAuthenticated(false);
     setUserAddress(null);
     deleteCookie('authToken');

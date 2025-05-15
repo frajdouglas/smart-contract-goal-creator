@@ -7,14 +7,13 @@ import { Wallet, AlertCircle, LogIn, LogOut } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/components/providers/auth-provider"
 import { useToast } from "@/hooks/use-toast"
-import { useSDK } from "@metamask/sdk-react";
 
 export function ConnectWallet() {
   const { isAuthenticated,walletAddress, connectWallet, disconnectWallet, signIn, signOut, isSignInLoading, isWalletConnecting } = useAuth()
   const [error, setError] = useState<string | null>(null)
-  const { toast } = useToast()
-  
+
   console.log(isAuthenticated, "isAuthenticated")
+  
   const formatAddress = (address: string) => {
     return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`
   }
