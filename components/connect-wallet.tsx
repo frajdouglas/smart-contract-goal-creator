@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Wallet, AlertCircle, LogIn, LogOut } from "lucide-react"
@@ -9,6 +9,7 @@ import { useAuth } from "@/components/providers/auth-provider"
 import { useToast } from "@/hooks/use-toast"
 import { useSDK, MetaMaskProvider } from "@metamask/sdk-react";
 
+import { postNonce } from "@/lib/api/postNonce"
 export function ConnectWallet() {
   const { walletAddress, connectWallet, disconnectWallet, user, signIn, signOut } = useAuth()
   const [isConnecting, setIsConnecting] = useState(false)
@@ -19,13 +20,19 @@ export function ConnectWallet() {
   const { sdk, connected, connecting, account } = useSDK();
 
 
-console.log(sdk, connected, connecting, account)
+  console.log(sdk, connected, connecting, account)
+
+  useEffect(() => {
+    if (account) {
+      postNonce(account).then((response) => {
+        console.log("Nonce response:", response);
+      })
+    }
+  }, [account])
 
   const connect = async () => {
     try {
       await sdk?.connect();
-          console.log('connect fired')
-
     } catch (err) {
       console.warn(`No accounts found`, err);
     }
@@ -153,10 +160,10 @@ console.log(sdk, connected, connecting, account)
                 </Button>
               </div>
             ) : (
-                <Button className="w-full" onClick={connect} disabled={isConnecting}>
-                  <Wallet className="mr-2 h-4 w-4" />
-                  {isConnecting ? "Connecting..." : "Connect Wallet"}
-                </Button>
+              <Button className="w-full" onClick={connect} disabled={isConnecting}>
+                <Wallet className="mr-2 h-4 w-4" />
+                {isConnecting ? "Connecting..." : "Connect Wallet"}
+              </Button>
             )}
           </div>
         )}

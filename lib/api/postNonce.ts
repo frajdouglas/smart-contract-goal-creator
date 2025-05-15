@@ -1,0 +1,15 @@
+import axios from "axios";
+
+export async function postNonce(address: string): Promise<{ nonce: string }> {
+  if (!address) {
+    throw new Error("Address is required");
+  }
+
+  try {
+    const response = await axios.post("/api/auth/nonce", { address });
+    return response.data; // { nonce: string }
+  } catch (error: any) {
+    console.error("Error posting nonce:", error.response?.data || error.message);
+    throw new Error(error.response?.data?.error || "Failed to post nonce");
+  }
+}

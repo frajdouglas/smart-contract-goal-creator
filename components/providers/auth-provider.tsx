@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { createContext, useContext, useEffect, useState } from "react"
-import { supabase } from "@/lib/supabase/client"
+import { supabaseClient } from "@/lib/supabase/client"
 import type { Session, User } from "@supabase/supabase-js"
 import { ethers } from "ethers"
 
@@ -31,7 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const {
         data: { session },
         error,
-      } = await supabase.auth.getSession()
+      } = await supabaseClient.auth.getSession()
       if (error) {
         console.error(error)
         setIsLoading(false)
@@ -45,7 +45,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabaseClient.auth.onAuthStateChange((_event, session) => {
       setSession(session)
       setUser(session?.user ?? null)
     })
@@ -113,7 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const signature = await signer.signMessage(message)
 
       // Check if a user with this wallet address already exists
-      const { data: existingUsers } = await supabase
+      const { data: existingUsers } = await supabaseClient
         .from("users")
         .select("id")
         .eq("wallet_address", walletAddress)
@@ -121,7 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (existingUsers && existingUsers.length > 0) {
         // User exists, sign them in
-        const { data, error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabaseClient.auth.signInWithPassword({
           email: `${walletAddress.toLowerCase()}@example.com`,
           password: signature.slice(0, 20), // Using part of signature as password (demo only)
         })
@@ -129,7 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (error) throw error
       } else {
         // User doesn't exist, sign them up
-        const { data, error: signUpError } = await supabase.auth.signUp({
+        const { data, error: signUpError } = await supabaseClient.auth.signUp({
           email: `${walletAddress.toLowerCase()}@example.com`,
           password: signature.slice(0, 20),
           options: {
@@ -143,7 +143,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Create user profile
         if (data.user) {
-          const { error: profileError } = await supabase.from("users").insert({
+          const { error: profileError } = await supabaseClient.from("users").insert({
             id: data.user.id,
             wallet_address: walletAddress,
             username: `user_${walletAddress.slice(2, 8)}`,
@@ -160,7 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      await supabase.auth.signOut()
+      await supabaseClient.auth.signOut()
     } catch (error) {
       console.error("Error signing out:", error)
     }
