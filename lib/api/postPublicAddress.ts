@@ -1,6 +1,6 @@
 import axios from "axios";
 
-export async function postNonce(address: string): Promise<{ nonce: string }> {
+export async function postPublicAddress(address: string): Promise<{ nonce: string }> {
   if (!address) {
     throw new Error("Address is required");
   }
