@@ -1,6 +1,6 @@
 import axios from "axios";
 
-export async function verifyNonce(address: string, nonce: string, signature: string): Promise<{ token: string }> {
+export async function verifySignature(address: string, nonce: string, signature: string): Promise<{ token: string }> {
   if (!address || !nonce || !signature) {
     throw new Error("Address, nonce, and signature are required");
   }

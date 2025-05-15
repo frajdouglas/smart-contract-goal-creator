@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { v4 as uuidv4 } from "uuid";
 import { supabaseServer } from "@/lib/supabase/server";
-
+import { supabaseClient } from "@/lib/supabase/client";
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === "GET") {
     return res.status(200).json({ answer: "working" });
@@ -23,8 +23,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Calculate the expiration time (10 minutes from now)
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-
-    console.log(nonce, address, "nonce");
 
     // Insert the nonce into the nonces table with an expiration time
     const { error } = await supabaseServer

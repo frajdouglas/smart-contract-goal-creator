@@ -1,208 +1,144 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { createContext, useContext, useEffect, useState } from "react"
-import { supabaseClient } from "@/lib/supabase/client"
-import type { Session, User } from "@supabase/supabase-js"
-import { ethers } from "ethers"
+import type React from "react";
+import { createContext, useContext, useEffect, useState } from "react";
+import { ethers } from "ethers";
+import { useRouter } from "next/navigation";
+import { deleteCookie, getCookie } from "cookies-next";
+import { useSDK } from "@metamask/sdk-react"; // Import useSDK
+import { postPublicAddress } from "@/lib/api/postPublicAddress";
+import { verifySignature } from "@/lib/api/verifySignature";
 
 type AuthContextType = {
-  user: User | null
-  session: Session | null
-  isLoading: boolean
-  signIn: () => Promise<void>
-  signOut: () => Promise<void>
-  walletAddress: string | null
-  connectWallet: () => Promise<void>
-  disconnectWallet: () => void
-}
+  isAuthenticated: boolean;
+  userAddress: string | null; // The verified and logged-in address
+  walletAddress: string | null; // The currently connected wallet address
+  connectWallet: () => Promise<void>;
+  disconnectWallet: () => void;
+  signIn: () => Promise<void>;
+  signOut: () => Promise<void>;
+  isLoading: boolean; // To indicate if initial auth state is loading
+};
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [session, setSession] = useState<Session | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [walletAddress, setWalletAddress] = useState<string | null>(null)
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userAddress, setUserAddress] = useState<string | null>(null);
+  const [walletAddress, setWalletAddress] = useState<string | null>(null); // We still need this local state
+  const [isLoading, setIsLoading] = useState(true);
+  const [nonce, setNonce] = useState<string | null>(null);
+  const router = useRouter();
+  const { sdk, connected, account } = useSDK(); // Get SDK states
 
   useEffect(() => {
-    const setData = async () => {
-      const {
-        data: { session },
-        error,
-      } = await supabaseClient.auth.getSession()
-      if (error) {
-        console.error(error)
-        setIsLoading(false)
-        return
-      }
+    // Check for authToken on initial load
+    const token = getCookie('authToken');
+    const storedWallet = localStorage.getItem('walletAddress');
 
-      setSession(session)
-      setUser(session?.user ?? null)
-      setIsLoading(false)
-    }
-
-    const {
-      data: { subscription },
-    } = supabaseClient.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-    })
-
-    setData()
-
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [])
-
-  // Check if wallet is already connected
-  useEffect(() => {
-    const checkWalletConnection = async () => {
-      if (typeof window !== "undefined" && window.ethereum) {
-        try {
-          const accounts = await window.ethereum.request({ method: "eth_accounts" })
-          if (accounts.length > 0) {
-            setWalletAddress(accounts[0])
-          }
-        } catch (error) {
-          console.error("Error checking wallet connection:", error)
-        }
+    if (storedWallet) {
+      setWalletAddress(storedWallet); // Restore persisted wallet address
+      // If a wallet was previously connected, update the SDK's state if needed
+      if (account !== storedWallet && sdk && !connected) {
+        sdk.connect().catch(error => console.error("Error auto-connecting:", error));
       }
     }
+    if (token && storedWallet) {
+      setIsAuthenticated(true);
+      setUserAddress(storedWallet);
+    }
 
-    checkWalletConnection()
-  }, [])
+    setIsLoading(false); // Initial load check complete
+  }, [sdk, connected, account]); // Listen for SDK and stored wallet changes
 
-  // Listen for account changes
-  useEffect(() => {
-    if (typeof window !== "undefined" && window.ethereum) {
-      const handleAccountsChanged = (accounts: string[]) => {
-        if (accounts.length > 0) {
-          setWalletAddress(accounts[0])
-        } else {
-          setWalletAddress(null)
-          // If user disconnects wallet, sign them out
-          if (user) {
-            signOut()
-          }
-        }
+  const connectWallet = async (): Promise<void> => {
+    if (sdk) {
+      try {
+        await sdk.connect();
+        // The 'account' state from useSDK will update, triggering the useEffect
+      } catch (error) {
+        console.error("Error connecting wallet:", error);
+        throw error;
       }
-
-      window.ethereum.on("accountsChanged", handleAccountsChanged)
-
-      return () => {
-        window.ethereum.removeListener("accountsChanged", handleAccountsChanged)
-      }
+    } else {
+      console.error("MetaMask SDK not initialized");
+      throw new Error("MetaMask SDK not initialized");
     }
-  }, [user])
-
-  const signIn = async () => {
-    try {
-      if (!walletAddress) {
-        throw new Error("Please connect your wallet first")
-      }
-
-      // Create a message for the user to sign
-      const message = `Sign this message to authenticate with Goal Tracker: ${new Date().toISOString()}`
-
-      // Request signature from the user
-      const provider = new ethers.BrowserProvider(window.ethereum)
-      const signer = await provider.getSigner()
-      const signature = await signer.signMessage(message)
-
-      // Check if a user with this wallet address already exists
-      const { data: existingUsers } = await supabaseClient
-        .from("users")
-        .select("id")
-        .eq("wallet_address", walletAddress)
-        .limit(1)
-
-      if (existingUsers && existingUsers.length > 0) {
-        // User exists, sign them in
-        const { data, error } = await supabaseClient.auth.signInWithPassword({
-          email: `${walletAddress.toLowerCase()}@example.com`,
-          password: signature.slice(0, 20), // Using part of signature as password (demo only)
-        })
-
-        if (error) throw error
-      } else {
-        // User doesn't exist, sign them up
-        const { data, error: signUpError } = await supabaseClient.auth.signUp({
-          email: `${walletAddress.toLowerCase()}@example.com`,
-          password: signature.slice(0, 20),
-          options: {
-            data: {
-              wallet_address: walletAddress,
-            },
-          },
-        })
-
-        if (signUpError) throw signUpError
-
-        // Create user profile
-        if (data.user) {
-          const { error: profileError } = await supabaseClient.from("users").insert({
-            id: data.user.id,
-            wallet_address: walletAddress,
-            username: `user_${walletAddress.slice(2, 8)}`,
-          })
-
-          if (profileError) throw profileError
-        }
-      }
-    } catch (error) {
-      console.error("Error signing in:", error)
-      throw error
-    }
-  }
-
-  const signOut = async () => {
-    try {
-      await supabaseClient.auth.signOut()
-    } catch (error) {
-      console.error("Error signing out:", error)
-    }
-  }
-
-  const connectWallet = async () => {
-    if (typeof window === "undefined" || !window.ethereum) {
-      throw new Error("MetaMask is not installed")
-    }
-
-    try {
-      const accounts = await window.ethereum.request({ method: "eth_requestAccounts" })
-      setWalletAddress(accounts[0])
-      return accounts[0]
-    } catch (error) {
-      console.error("Error connecting wallet:", error)
-      throw error
-    }
-  }
+  };
 
   const disconnectWallet = () => {
-    setWalletAddress(null)
-  }
+    if (sdk) {
+      sdk.terminate();
+      resetAuthState();
+    }
+  };
+
+  const resetAuthState = (shouldRedirect: boolean = true) => {
+    setWalletAddress(null);
+    localStorage.removeItem('walletAddress');
+    setIsAuthenticated(false);
+    setUserAddress(null);
+    setNonce(null);
+    deleteCookie('authToken');
+    if (shouldRedirect) {
+      router.push("/");
+    }
+  };
+
+  const signIn = async () => {
+    if (!account) {
+      throw new Error("Wallet not connected");
+    }
+      const newNonce = await postPublicAddress(account);
+      if (!newNonce) {
+        throw new Error("Nonce not available for signing.");
+      }
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      console.log("Provider:", provider);
+      const signer = await provider.getSigner(account);
+      console.log("Signer:", signer);
+      const signature = await signer.signMessage(newNonce.nonce);
+      console.log("Signature:", signature);
+      const verifyResponse = await verifySignature(account, newNonce.nonce, signature);
+      if (verifyResponse?.token) {
+        setIsAuthenticated(true);
+        setUserAddress(account);
+      } else {
+        resetAuthState(false);
+        throw new Error("Failed to verify signature");
+      }
+    } catch (error) {
+      console.error("Error signing in:", error);
+      resetAuthState(false);
+      throw error;
+    } finally {
+      setNonce(null); 
+    }
+  };
+
+  const signOut = async () => {
+    resetAuthState();
+  };
 
   const value = {
-    user,
-    session,
-    isLoading,
-    signIn,
-    signOut,
-    walletAddress,
+    isAuthenticated,
+    userAddress,
+    walletAddress: account || null, // Use the 'account' from the SDK, fallback to null
     connectWallet,
     disconnectWallet,
-  }
+    signIn,
+    signOut,
+    isLoading,
+  };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export const useAuth = () => {
-  const context = useContext(AuthContext)
+  const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider")
+    throw new Error("useAuth must be used within an AuthProvider");
   }
-  return context
-}
+  return context;
+};

@@ -16,6 +16,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     // Query the nonces table for the provided nonce and address
+
     const { data: nonceRecord, error: queryError } = await supabaseClient
       .from("nonces")
       .select("*")
@@ -24,6 +25,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .single();
 
     if (queryError || !nonceRecord) {
+      console.log(queryError, "queryError", nonceRecord, address, nonce);
       return res.status(400).json({ error: "Invalid or expired nonce" });
     }
 
@@ -34,9 +36,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (currentTime > nonceExpiryTime) {
       return res.status(400).json({ error: "Nonce has expired" });
     }
-
+console.log("Nonce is valid and not expired");
     // Verify the signature using ethers.js
-    const recoveredAddress = ethers.utils.verifyMessage(nonce, signature);
+    const recoveredAddress = ethers.verifyMessage(nonce, signature);
+console.log("recoveredAddress", recoveredAddress);
 
     if (recoveredAddress.toLowerCase() !== address.toLowerCase()) {
       return res.status(400).json({ error: "Invalid signature" });

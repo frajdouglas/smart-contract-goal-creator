@@ -9,26 +9,25 @@ import { useAuth } from "@/components/providers/auth-provider"
 import { useToast } from "@/hooks/use-toast"
 import { useSDK, MetaMaskProvider } from "@metamask/sdk-react";
 
-import { postNonce } from "@/lib/api/postNonce"
+import { postPublicAddress } from "@/lib/api/postPublicAddress"
 export function ConnectWallet() {
   const { walletAddress, connectWallet, disconnectWallet, user, signIn, signOut } = useAuth()
   const [isConnecting, setIsConnecting] = useState(false)
   const [isSigningIn, setIsSigningIn] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
-
   const { sdk, connected, connecting, account } = useSDK();
 
 
   console.log(sdk, connected, connecting, account)
 
-  useEffect(() => {
-    if (account) {
-      postNonce(account).then((response) => {
-        console.log("Nonce response:", response);
-      })
-    }
-  }, [account])
+  // useEffect(() => {
+  //   if (account) {
+  //     postPublicAddress(account).then((response) => {
+  //       console.log("Nonce response:", response);
+  //     })
+  //   }
+  // }, [account])
 
   const connect = async () => {
     try {
@@ -154,13 +153,13 @@ export function ConnectWallet() {
                     Disconnect
                   </Button>
                 </div>
-                <Button className="w-full" onClick={handleSignIn} disabled={isSigningIn}>
+                <Button className="w-full" onClick={signIn} disabled={isSigningIn}>
                   <LogIn className="mr-2 h-4 w-4" />
                   {isSigningIn ? "Signing in..." : "Sign In with Wallet"}
                 </Button>
               </div>
             ) : (
-              <Button className="w-full" onClick={connect} disabled={isConnecting}>
+              <Button className="w-full" onClick={connectWallet} disabled={isConnecting}>
                 <Wallet className="mr-2 h-4 w-4" />
                 {isConnecting ? "Connecting..." : "Connect Wallet"}
               </Button>
