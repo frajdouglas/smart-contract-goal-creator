@@ -18,6 +18,8 @@ type AuthContextType = {
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
   isSignInLoading: boolean; // To indicate if initial auth state is loading
+  isWalletConnecting: boolean; // To indicate if initial auth state is loading
+
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -25,42 +27,25 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userAddress, setUserAddress] = useState<string | null>(null);
-  const [walletAddress, setWalletAddress] = useState<string | null>(null); // We still need this local state
   const [isSignInLoading, setIsSignInLoading] = useState(false);
-  const [nonce, setNonce] = useState<string | null>(null);
-  const router = useRouter();
+  const [isWalletConnecting, setIsWalletConnecting] = useState(false);
+
   const { sdk, connected, account } = useSDK(); // Get SDK states
-
-  // useEffect(() => {
-  //   // Check for authToken on initial load
-  //   const token = getCookie('authToken');
-  //   const storedWallet = localStorage.getItem('walletAddress');
-
-  //   if (storedWallet) {
-  //     setWalletAddress(storedWallet); // Restore persisted wallet address
-  //     // If a wallet was previously connected, update the SDK's state if needed
-  //     if (account !== storedWallet && sdk && !connected) {
-  //       sdk.connect().catch(error => console.error("Error auto-connecting:", error));
-  //     }
-  //   }
-  //   if (token && storedWallet) {
-  //     setIsAuthenticated(true);
-  //     setUserAddress(storedWallet);
-  //   }
-
-  //   setIsLoading(false); // Initial load check complete
-  // }, [sdk, connected, account]); // Listen for SDK and stored wallet changes
 
   const connectWallet = async (): Promise<void> => {
     if (sdk) {
       try {
+        setIsWalletConnecting(true);
         await sdk.connect();
-        // The 'account' state from useSDK will update, triggering the useEffect
+        setIsWalletConnecting(false);
+
       } catch (error) {
+        setIsWalletConnecting(false);
         console.error("Error connecting wallet:", error);
         throw error;
       }
     } else {
+      setIsWalletConnecting(false);
       console.error("MetaMask SDK not initialized");
       throw new Error("MetaMask SDK not initialized");
     }
@@ -78,7 +63,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('walletAddress');
     setIsAuthenticated(false);
     setUserAddress(null);
-    setNonce(null);
     deleteCookie('authToken');
   };
 
@@ -129,6 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signIn,
     signOut,
     isSignInLoading,
+    isWalletConnecting
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

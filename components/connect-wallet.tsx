@@ -10,16 +10,11 @@ import { useToast } from "@/hooks/use-toast"
 import { useSDK } from "@metamask/sdk-react";
 
 export function ConnectWallet() {
-  const { isAuthenticated,walletAddress, connectWallet, disconnectWallet, signIn, signOut, isSignInLoading } = useAuth()
-  const [isConnecting, setIsConnecting] = useState(false)
-  const [isSigningIn, setIsSigningIn] = useState(false)
+  const { isAuthenticated,walletAddress, connectWallet, disconnectWallet, signIn, signOut, isSignInLoading, isWalletConnecting } = useAuth()
   const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
-  const { sdk, connected, connecting, account } = useSDK();
-
-
+  
   console.log(isAuthenticated, "isAuthenticated")
-
   const formatAddress = (address: string) => {
     return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`
   }
@@ -65,15 +60,15 @@ export function ConnectWallet() {
                     Disconnect
                   </Button>
                 </div>
-                <Button className="w-full" onClick={signIn} disabled={isSigningIn}>
+                <Button className="w-full" onClick={signIn} disabled={isSignInLoading}>
                   <LogIn className="mr-2 h-4 w-4" />
                   {isSignInLoading ? "Signing in..." : "Sign In with Wallet"}
                 </Button>
               </div>
             ) : (
-              <Button className="w-full" onClick={connectWallet} disabled={isConnecting}>
+              <Button className="w-full" onClick={connectWallet} disabled={isWalletConnecting}>
                 <Wallet className="mr-2 h-4 w-4" />
-                {isConnecting ? "Connecting..." : "Connect Wallet"}
+                {isWalletConnecting ? "Wallet connecting..." : "Connect Wallet"}
               </Button>
             )}
           </div>
