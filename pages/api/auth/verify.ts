@@ -28,10 +28,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Check if the nonce is within the valid timeframe
-    const nonceExpriyTime = new Date(nonceRecord.expires_at);
+    const nonceExpiryTime = new Date(nonceRecord.expires_at);
     const currentTime = new Date();
 
-    if (currentTime > nonceExpriyTime) {
+    if (currentTime > nonceExpiryTime) {
       return res.status(400).json({ error: "Nonce has expired" });
     }
 
