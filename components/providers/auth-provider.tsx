@@ -17,7 +17,7 @@ type AuthContextType = {
   disconnectWallet: () => void;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
-  isLoading: boolean; // To indicate if initial auth state is loading
+  isSignInLoading: boolean; // To indicate if initial auth state is loading
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,30 +26,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userAddress, setUserAddress] = useState<string | null>(null);
   const [walletAddress, setWalletAddress] = useState<string | null>(null); // We still need this local state
-  const [isLoading, setIsLoading] = useState(true);
+  const [isSignInLoading, setIsSignInLoading] = useState(false);
   const [nonce, setNonce] = useState<string | null>(null);
   const router = useRouter();
   const { sdk, connected, account } = useSDK(); // Get SDK states
 
-  useEffect(() => {
-    // Check for authToken on initial load
-    const token = getCookie('authToken');
-    const storedWallet = localStorage.getItem('walletAddress');
+  // useEffect(() => {
+  //   // Check for authToken on initial load
+  //   const token = getCookie('authToken');
+  //   const storedWallet = localStorage.getItem('walletAddress');
 
-    if (storedWallet) {
-      setWalletAddress(storedWallet); // Restore persisted wallet address
-      // If a wallet was previously connected, update the SDK's state if needed
-      if (account !== storedWallet && sdk && !connected) {
-        sdk.connect().catch(error => console.error("Error auto-connecting:", error));
-      }
-    }
-    if (token && storedWallet) {
-      setIsAuthenticated(true);
-      setUserAddress(storedWallet);
-    }
+  //   if (storedWallet) {
+  //     setWalletAddress(storedWallet); // Restore persisted wallet address
+  //     // If a wallet was previously connected, update the SDK's state if needed
+  //     if (account !== storedWallet && sdk && !connected) {
+  //       sdk.connect().catch(error => console.error("Error auto-connecting:", error));
+  //     }
+  //   }
+  //   if (token && storedWallet) {
+  //     setIsAuthenticated(true);
+  //     setUserAddress(storedWallet);
+  //   }
 
-    setIsLoading(false); // Initial load check complete
-  }, [sdk, connected, account]); // Listen for SDK and stored wallet changes
+  //   setIsLoading(false); // Initial load check complete
+  // }, [sdk, connected, account]); // Listen for SDK and stored wallet changes
 
   const connectWallet = async (): Promise<void> => {
     if (sdk) {
@@ -86,10 +86,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!account) {
       throw new Error("Wallet not connected");
     }
-      const newNonce = await postPublicAddress(account);
-      if (!newNonce) {
-        throw new Error("Nonce not available for signing.");
-      }
+    setIsSignInLoading(true);
+    const newNonce = await postPublicAddress(account);
+    if (!newNonce) {
+      throw new Error("Nonce not available for signing.");
+    }
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
       console.log("Provider:", provider);
@@ -100,17 +101,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const verifyResponse = await verifySignature(account, newNonce.nonce, signature);
       if (verifyResponse?.token) {
         setIsAuthenticated(true);
+        setIsSignInLoading(false);
         setUserAddress(account);
       } else {
         resetAuthState();
+        setIsSignInLoading(false);
         throw new Error("Failed to verify signature");
       }
     } catch (error) {
       console.error("Error signing in:", error);
+      setIsSignInLoading(false);
       resetAuthState();
       throw error;
-    } finally {
-      setNonce(null); 
     }
   };
 
@@ -126,7 +128,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     disconnectWallet,
     signIn,
     signOut,
-    isLoading,
+    isSignInLoading,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

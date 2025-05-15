@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useSDK } from "@metamask/sdk-react";
 
 export function ConnectWallet() {
-  const { isAuthenticated,walletAddress, connectWallet, disconnectWallet, user, signIn, signOut } = useAuth()
+  const { isAuthenticated,walletAddress, connectWallet, disconnectWallet, signIn, signOut, isSignInLoading } = useAuth()
   const [isConnecting, setIsConnecting] = useState(false)
   const [isSigningIn, setIsSigningIn] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -19,18 +19,6 @@ export function ConnectWallet() {
 
 
   console.log(isAuthenticated, "isAuthenticated")
-
-  const handleSignOut = async () => {
-    try {
-      await signOut()
-      toast({
-        title: "Signed out",
-        description: "You have been signed out successfully.",
-      })
-    } catch (err: any) {
-      console.error(err)
-    }
-  }
 
   const formatAddress = (address: string) => {
     return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`
@@ -79,7 +67,7 @@ export function ConnectWallet() {
                 </div>
                 <Button className="w-full" onClick={signIn} disabled={isSigningIn}>
                   <LogIn className="mr-2 h-4 w-4" />
-                  {isSigningIn ? "Signing in..." : "Sign In with Wallet"}
+                  {isSignInLoading ? "Signing in..." : "Sign In with Wallet"}
                 </Button>
               </div>
             ) : (
