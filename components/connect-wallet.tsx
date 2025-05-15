@@ -1,19 +1,18 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Wallet, AlertCircle, LogIn, LogOut } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/components/providers/auth-provider"
-import { useToast } from "@/hooks/use-toast"
 
 export function ConnectWallet() {
   const { isAuthenticated,walletAddress, connectWallet, disconnectWallet, signIn, signOut, isSignInLoading, isWalletConnecting } = useAuth()
   const [error, setError] = useState<string | null>(null)
 
   console.log(isAuthenticated, "isAuthenticated")
-  
+
   const formatAddress = (address: string) => {
     return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`
   }
