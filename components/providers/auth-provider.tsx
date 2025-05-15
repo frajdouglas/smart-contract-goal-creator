@@ -73,16 +73,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const resetAuthState = (shouldRedirect: boolean = true) => {
+  const resetAuthState = () => {
     setWalletAddress(null);
     localStorage.removeItem('walletAddress');
     setIsAuthenticated(false);
     setUserAddress(null);
     setNonce(null);
     deleteCookie('authToken');
-    if (shouldRedirect) {
-      router.push("/");
-    }
   };
 
   const signIn = async () => {
@@ -105,12 +102,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsAuthenticated(true);
         setUserAddress(account);
       } else {
-        resetAuthState(false);
+        resetAuthState();
         throw new Error("Failed to verify signature");
       }
     } catch (error) {
       console.error("Error signing in:", error);
-      resetAuthState(false);
+      resetAuthState();
       throw error;
     } finally {
       setNonce(null); 

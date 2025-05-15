@@ -7,11 +7,10 @@ import { Wallet, AlertCircle, LogIn, LogOut } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/components/providers/auth-provider"
 import { useToast } from "@/hooks/use-toast"
-import { useSDK, MetaMaskProvider } from "@metamask/sdk-react";
+import { useSDK } from "@metamask/sdk-react";
 
-import { postPublicAddress } from "@/lib/api/postPublicAddress"
 export function ConnectWallet() {
-  const { walletAddress, connectWallet, disconnectWallet, user, signIn, signOut } = useAuth()
+  const { isAuthenticated,walletAddress, connectWallet, disconnectWallet, user, signIn, signOut } = useAuth()
   const [isConnecting, setIsConnecting] = useState(false)
   const [isSigningIn, setIsSigningIn] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -19,82 +18,7 @@ export function ConnectWallet() {
   const { sdk, connected, connecting, account } = useSDK();
 
 
-  console.log(sdk, connected, connecting, account)
-
-  // useEffect(() => {
-  //   if (account) {
-  //     postPublicAddress(account).then((response) => {
-  //       console.log("Nonce response:", response);
-  //     })
-  //   }
-  // }, [account])
-
-  const connect = async () => {
-    try {
-      await sdk?.connect();
-    } catch (err) {
-      console.warn(`No accounts found`, err);
-    }
-  };
-
-  const disconnect = () => {
-    if (sdk) {
-      sdk.terminate();
-    }
-  };
-
-  // Check if ethereum is available
-  const isEthereumAvailable = typeof window !== "undefined" && window.ethereum !== undefined
-
-  const handleConnectWallet = async () => {
-    if (!isEthereumAvailable) {
-      setError("MetaMask is not installed. Please install MetaMask to use this application.")
-      return
-    }
-
-    setIsConnecting(true)
-    setError(null)
-
-    try {
-      await connectWallet()
-      toast({
-        title: "Wallet connected",
-        description: "Your wallet has been connected successfully.",
-      })
-    } catch (err: any) {
-      setError(err.message || "Failed to connect wallet")
-      console.error(err)
-    } finally {
-      setIsConnecting(false)
-    }
-  }
-
-  const handleSignIn = async () => {
-    if (!walletAddress) {
-      toast({
-        title: "Wallet not connected",
-        description: "Please connect your wallet first.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setIsSigningIn(true)
-    setError(null)
-
-    try {
-      await signIn()
-      toast({
-        title: "Signed in successfully",
-        description: "You are now signed in to the application.",
-      })
-    } catch (err: any) {
-      setError(err.message || "Failed to sign in")
-      console.error(err)
-    } finally {
-      setIsSigningIn(false)
-    }
-  }
+  console.log(isAuthenticated, "isAuthenticated")
 
   const handleSignOut = async () => {
     try {
@@ -125,7 +49,7 @@ export function ConnectWallet() {
           </Alert>
         )}
 
-        {user ? (
+        {isAuthenticated ? (
           // User is signed in
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -133,7 +57,7 @@ export function ConnectWallet() {
                 <p className="font-medium">Wallet Connected</p>
                 <p className="text-sm text-muted-foreground">{formatAddress(walletAddress || "")}</p>
               </div>
-              <Button variant="outline" size="sm" onClick={handleSignOut}>
+              <Button variant="outline" size="sm" onClick={signOut}>
                 <LogOut className="mr-2 h-4 w-4" />
                 Sign Out
               </Button>
