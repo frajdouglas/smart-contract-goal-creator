@@ -3,6 +3,7 @@ import { supabaseClient } from "@/lib/supabase/client";
 import { ethers } from "ethers";
 import jwt from "jsonwebtoken";
 import { serialize } from 'cookie';
+import { supabaseServer } from "@/lib/supabase/server";
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -60,7 +61,7 @@ console.log("recoveredAddress", recoveredAddress);
 
 
     // Delete the used nonce from the database
-    const { error: deleteError } = await supabaseClient
+    const { error: deleteError } = await supabaseServer
       .from("nonces")
       .delete()
       .eq("nonce", nonce)
