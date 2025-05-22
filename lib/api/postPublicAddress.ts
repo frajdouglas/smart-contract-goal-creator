@@ -7,7 +7,7 @@ export async function postPublicAddress(address: string): Promise<{ nonce: strin
 
   try {
     const response = await axios.post("/api/auth/nonce", { address });
-    return response.data; // { nonce: string }
+    return response.data;
   } catch (error: any) {
     console.error("Error posting nonce:", error.response?.data || error.message);
     throw new Error(error.response?.data?.error || "Failed to post nonce");
