@@ -299,7 +299,7 @@ export default function CreateGoalPage() {
                     name="stake"
                     type="number"
                     step="0.01"
-                    min="0.01" // HTML5 min attribute for basic client-side check
+                    min="0.001"
                     placeholder="0.5"
                     value={formData.stake}
                     onChange={handleChange}
