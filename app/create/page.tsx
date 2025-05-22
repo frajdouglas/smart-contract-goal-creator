@@ -2,9 +2,9 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { ethers } from "ethers"; // Assuming ethers is still needed for any local parsing (though now mostly in contract-interactions)
+
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -17,9 +17,9 @@ import { createGoalOnChain } from "@/lib/contract-interactions"
 import { useAuth } from "@/components/providers/auth-provider"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
-import DOMPurify from 'dompurify';
+import DOMPurify from 'dompurify'; // Still needed here for final sanitization before sending data
 
-// NEW: Import AlertDialog components
+// Import AlertDialog components from shadcn/ui
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,16 +31,17 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 
+// Import validation functions and types from your new validation file
+import { validateField, validateForm, GoalFormData, FormErrors } from "@/lib/validation";
+
 export default function CreateGoalPage() {
   const { isAuthenticated, walletAddress, userAddress, signer, isWalletConnecting } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
 
   const [isSubmitting, setIsSubmitting] = useState(false)
-  // NEW: State to control the confirmation dialog visibility
   const [showConfirmationDialog, setShowConfirmationDialog] = useState(false)
-
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<GoalFormData>({
     title: "",
     description: "",
     deadline: new Date(),
@@ -49,32 +50,79 @@ export default function CreateGoalPage() {
     successRecipientAddress: "",
     failureRecipientAddress: "",
   })
+  // State for form validation errors, initialized as empty
+  const [formErrors, setFormErrors] = useState<FormErrors>({})
 
+  // Effect to automatically set the success recipient to the connected wallet address
+  // This runs once when walletAddress becomes available and if the field is empty
   useEffect(() => {
-    // Set default successRecipientAddress when walletAddress becomes available
-    // and only if it hasn't been set by the user or already defaulted
     if (walletAddress && formData.successRecipientAddress === "") {
       setFormData((prev) => ({ ...prev, successRecipientAddress: walletAddress }));
     }
   }, [walletAddress, formData.successRecipientAddress]);
 
-
+  // Handler for changes in input fields (excluding DatePicker)
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
-  }
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    // As user types, clear the error for this field
+    setFormErrors((prev) => ({ ...prev, [name]: undefined }));
+  };
 
+  // Handler for DatePicker changes
   const handleDateChange = (date: Date | undefined) => {
     if (date) {
-      setFormData((prev) => ({ ...prev, deadline: date }))
+      setFormData((prev) => ({ ...prev, deadline: date }));
+      setFormErrors((prev) => ({ ...prev, deadline: undefined })); // Clear error on valid date selection
+    } else {
+      // If date is cleared/undefined, set a default (e.g., current date) and an error
+      setFormData((prev) => ({ ...prev, deadline: new Date() }));
+      setFormErrors((prev) => ({ ...prev, deadline: "Deadline is required." }));
     }
-  }
+  };
 
-  // This function now *only* opens the confirmation dialog
+  // Handler for when an input field loses focus (onBlur event)
+  const handleBlur = (name: keyof GoalFormData) => {
+    const value = formData[name];
+    // Use the extracted validateField function, passing walletAddress for referee validation
+    const error = validateField(name, value, walletAddress);
+    setFormErrors((prev) => ({ ...prev, [name]: error })); // Update errors state for specific field
+  };
+
+  // Callback to determine if the form is generally valid for enabling/disabling the submit button
+  const isFormValid = useCallback(() => {
+    // Check if there are no error messages currently present in the formErrors state
+    const hasNoErrors = Object.values(formErrors).every(error => !error);
+
+    // Also perform a basic check that all required fields are filled (even if no blur validation triggered yet)
+    const allRequiredFieldsFilled = Object.values(formData).every(value => {
+        // Special handling for Date objects: ensure it's a valid date
+        if (value instanceof Date) return !isNaN(value.getTime());
+        // For strings, check if trimmed value is not empty; otherwise, check for null/undefined
+        return typeof value === 'string' ? value.trim() !== '' : value !== null && value !== undefined;
+    });
+
+    return hasNoErrors && allRequiredFieldsFilled;
+  }, [formData, formErrors]); // Dependencies for useCallback
+
+  // Main form submission handler - now first validates, then opens confirmation dialog
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Basic authentication and wallet checks moved here, before opening dialog
+    // Perform a full form validation using the extracted function
+    const { isValid, errors } = validateForm(formData, walletAddress);
+    setFormErrors(errors); // Update the errors state to display all errors
+
+    if (!isValid) {
+      toast({
+        title: "Validation Error",
+        description: "Please correct the errors in the form.",
+        variant: "destructive",
+      });
+      return; // Stop execution if validation fails
+    }
+
+    // Authentication and wallet connection checks
     if (!isAuthenticated) {
       toast({
         title: "Authentication required",
@@ -93,23 +141,23 @@ export default function CreateGoalPage() {
       return;
     }
 
-    // NEW: Open the confirmation dialog
+    // If all checks pass, open the confirmation dialog
     setShowConfirmationDialog(true);
   };
 
-  // NEW: This function handles the actual blockchain transaction and DB write
+  // Handler for confirming the goal creation and staking ETH (triggered from AlertDialog)
   const handleConfirmCreateGoal = async () => {
-    setIsSubmitting(true); // Indicate that the submission process has started
+    setIsSubmitting(true); // Set submitting state to disable buttons and show loading
 
     try {
-      // Sanitize all relevant string inputs right before use
+      // Apply final XSS sanitization to all string inputs before sending to blockchain/DB
       const sanitizedTitle = DOMPurify.sanitize(formData.title);
       const sanitizedDescription = DOMPurify.sanitize(formData.description);
       const sanitizedRefereeAddress = DOMPurify.sanitize(formData.refereeAddress);
       const sanitizedSuccessRecipientAddress = DOMPurify.sanitize(formData.successRecipientAddress);
       const sanitizedFailureRecipientAddress = DOMPurify.sanitize(formData.failureRecipientAddress);
 
-      // Phase 1: Create the goal on the blockchain
+      // Phase 1: Create the goal on the blockchain via contract interaction
       const { receipt, contractGoalId } = await createGoalOnChain({
         title: sanitizedTitle,
         description: sanitizedDescription,
@@ -118,19 +166,19 @@ export default function CreateGoalPage() {
         refereeAddress: sanitizedRefereeAddress,
         successRecipientAddress: sanitizedSuccessRecipientAddress,
         failureRecipientAddress: sanitizedFailureRecipientAddress,
-        signer: signer!, // Use non-null assertion as signer is checked before dialog opens
+        signer: signer!, // 'signer' is guaranteed non-null due to prior checks
       });
 
       console.log("Blockchain transaction confirmed:", receipt);
       console.log("Extracted Contract Goal ID:", contractGoalId);
 
-      // Phase 2: Store the goal in Supabase (ONLY if blockchain was successful)
+      // Phase 2: Store the goal details in Supabase database
       const goal = await createGoal({
         title: sanitizedTitle,
         description: sanitizedDescription,
         deadline: formData.deadline.toISOString(),
-        creator_id: userAddress!, // Use non-null assertion as userAddress is from isAuthenticated
-        referee_id: null,
+        creator_id: userAddress!, // 'userAddress' is guaranteed non-null due to prior checks
+        referee_id: null, // Placeholder for future referee user linking
         stake_amount: formData.stake,
         status: "active",
         contract_goal_id: contractGoalId,
@@ -141,11 +189,12 @@ export default function CreateGoalPage() {
         description: "Your ETH has been staked in the escrow contract and saved to our database.",
       });
 
+      // Redirect to the newly created goal's detail page
       router.push(`/goals/${goal.id}`);
     } catch (error: any) {
       console.error("Error creating goal:", error);
       let errorMessage = "Please try again.";
-      if (error.code === 4001) {
+      if (error.code === 4001) { // User rejected transaction in wallet
         errorMessage = "Transaction was rejected by your wallet.";
       } else if (error.message) {
         errorMessage = error.message;
@@ -156,12 +205,12 @@ export default function CreateGoalPage() {
         variant: "destructive",
       });
     } finally {
-      setIsSubmitting(false); // Reset submitting state
+      setIsSubmitting(false); // Reset submitting state regardless of success/failure
       setShowConfirmationDialog(false); // Close the dialog
     }
   };
 
-  // Display conditions for the form
+  // Render loading state while connecting wallet
   if (isWalletConnecting) {
     return (
       <div className="container mx-auto px-4 py-8 text-center">
@@ -170,6 +219,7 @@ export default function CreateGoalPage() {
     );
   }
 
+  // Render authentication required alert if not authenticated
   if (!isAuthenticated) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -184,9 +234,10 @@ export default function CreateGoalPage() {
           </Button>
         </div>
       </div>
-    );
+    )
   }
 
+  // Main form rendering
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-2xl mx-auto">
@@ -195,8 +246,9 @@ export default function CreateGoalPage() {
             <CardTitle>Create New Goal</CardTitle>
             <CardDescription>Set your goal, stake ETH, and assign a referee to verify completion</CardDescription>
           </CardHeader>
-          <form onSubmit={handleSubmit}> {/* This now opens the dialog */}
+          <form onSubmit={handleSubmit}>
             <CardContent className="space-y-6">
+              {/* Goal Title Field */}
               <div className="space-y-2">
                 <Label htmlFor="title">Goal Title</Label>
                 <Input
@@ -205,10 +257,15 @@ export default function CreateGoalPage() {
                   placeholder="E.g., Complete 30 days of coding"
                   value={formData.title}
                   onChange={handleChange}
+                  onBlur={() => handleBlur('title')} // Validation on blur
                   required
                 />
+                {formErrors.title && (
+                  <p className="text-sm text-red-500">{formErrors.title}</p>
+                )}
               </div>
 
+              {/* Description Field */}
               <div className="space-y-2">
                 <Label htmlFor="description">Description</Label>
                 <Textarea
@@ -217,14 +274,22 @@ export default function CreateGoalPage() {
                   placeholder="Describe your goal in detail, including how it will be verified"
                   value={formData.description}
                   onChange={handleChange}
+                  onBlur={() => handleBlur('description')} // Validation on blur
                   required
                 />
+                {formErrors.description && (
+                  <p className="text-sm text-red-500">{formErrors.description}</p>
+                )}
               </div>
 
+              {/* Deadline and Stake Amount Fields (Grid Layout) */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label>Deadline</Label>
                   <DatePicker date={formData.deadline} setDate={handleDateChange} />
+                  {formErrors.deadline && (
+                    <p className="text-sm text-red-500">{formErrors.deadline}</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -234,15 +299,20 @@ export default function CreateGoalPage() {
                     name="stake"
                     type="number"
                     step="0.01"
-                    min="0.01"
+                    min="0.01" // HTML5 min attribute for basic client-side check
                     placeholder="0.5"
                     value={formData.stake}
                     onChange={handleChange}
+                    onBlur={() => handleBlur('stake')} // Validation on blur
                     required
                   />
+                  {formErrors.stake && (
+                    <p className="text-sm text-red-500">{formErrors.stake}</p>
+                  )}
                 </div>
               </div>
 
+              {/* Referee Wallet Address Field */}
               <div className="space-y-2">
                 <Label htmlFor="refereeAddress">Referee Wallet Address</Label>
                 <Input
@@ -251,13 +321,18 @@ export default function CreateGoalPage() {
                   placeholder="0x..."
                   value={formData.refereeAddress}
                   onChange={handleChange}
+                  onBlur={() => handleBlur('refereeAddress')} // Validation on blur
                   required
                 />
                 <p className="text-sm text-muted-foreground">
                   This person will verify whether you've completed your goal.
                 </p>
+                {formErrors.refereeAddress && (
+                  <p className="text-sm text-red-500">{formErrors.refereeAddress}</p>
+                )}
               </div>
 
+              {/* Success Recipient Address Field */}
               <div className="space-y-2">
                 <Label htmlFor="successRecipientAddress">Success Recipient Address</Label>
                 <Input
@@ -266,13 +341,18 @@ export default function CreateGoalPage() {
                   placeholder="0x..."
                   value={formData.successRecipientAddress}
                   onChange={handleChange}
+                  onBlur={() => handleBlur('successRecipientAddress')} // Validation on blur
                   required
                 />
                 <p className="text-sm text-muted-foreground">
                   The address that receives the staked ETH if you successfully complete the goal. Defaults to your wallet.
                 </p>
+                {formErrors.successRecipientAddress && (
+                  <p className="text-sm text-red-500">{formErrors.successRecipientAddress}</p>
+                )}
               </div>
 
+              {/* Failure Recipient Address Field */}
               <div className="space-y-2">
                 <Label htmlFor="failureRecipientAddress">Failure Recipient Address</Label>
                 <Input
@@ -281,11 +361,15 @@ export default function CreateGoalPage() {
                   placeholder="0x..."
                   value={formData.failureRecipientAddress}
                   onChange={handleChange}
+                  onBlur={() => handleBlur('failureRecipientAddress')} // Validation on blur
                   required
                 />
                 <p className="text-sm text-muted-foreground">
                   The address that receives the staked ETH if you fail to complete the goal.
                 </p>
+                {formErrors.failureRecipientAddress && (
+                  <p className="text-sm text-red-500">{formErrors.failureRecipientAddress}</p>
+                )}
               </div>
 
             </CardContent>
@@ -293,8 +377,8 @@ export default function CreateGoalPage() {
               <Button type="button" variant="outline" onClick={() => router.push("/")}>
                 Cancel
               </Button>
-              {/* This button now triggers the confirmation dialog */}
-              <Button type="submit" disabled={isSubmitting}>
+              {/* The submit button is disabled if a submission is in progress OR if the form is not valid */}
+              <Button type="submit" disabled={isSubmitting || !isFormValid()}>
                 Create & Stake ETH
               </Button>
             </CardFooter>
@@ -302,7 +386,7 @@ export default function CreateGoalPage() {
         </Card>
       </div>
 
-      {/* NEW: Confirmation Dialog */}
+      {/* Confirmation Dialog (AlertDialog from shadcn/ui) */}
       <AlertDialog open={showConfirmationDialog} onOpenChange={setShowConfirmationDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -310,12 +394,13 @@ export default function CreateGoalPage() {
             <AlertDialogDescription className="space-y-2">
               <p>Please review the details below before proceeding. Once confirmed, your ETH will be staked on the blockchain.</p>
               <ul className="list-disc list-inside text-sm mt-2 space-y-1">
-                <li><strong>Goal Title:</strong> {formData.title}</li>
+                {/* Sanitize data for display in the dialog for an extra layer of safety */}
+                <li><strong>Goal Title:</strong> {DOMPurify.sanitize(formData.title)}</li>
                 <li><strong>Stake Amount:</strong> {formData.stake} ETH</li>
                 <li><strong>Deadline:</strong> {formData.deadline.toLocaleDateString()}</li>
-                <li><strong>Referee Address:</strong> {formData.refereeAddress}</li>
-                <li><strong>Success Recipient:</strong> {formData.successRecipientAddress}</li>
-                <li><strong>Failure Recipient:</strong> {formData.failureRecipientAddress}</li>
+                <li><strong>Referee Address:</strong> {DOMPurify.sanitize(formData.refereeAddress)}</li>
+                <li><strong>Success Recipient:</strong> {DOMPurify.sanitize(formData.successRecipientAddress)}</li>
+                <li><strong>Failure Recipient:</strong> {DOMPurify.sanitize(formData.failureRecipientAddress)}</li>
               </ul>
               <p className="font-semibold text-destructive">
                 Ensure all addresses are correct. This action cannot be reversed on-chain.
