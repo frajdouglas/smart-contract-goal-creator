@@ -2,9 +2,9 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react" // Import useEffect
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { ethers } from "ethers"; // Import ethers for interface parsing if needed, though moved to contract-interactions
+import { ethers } from "ethers";
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -17,11 +17,9 @@ import { createGoalOnChain } from "@/lib/contract-interactions"
 import { useAuth } from "@/components/providers/auth-provider"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
-// Assuming abis import was only for event parsing which is now in contract-interactions.ts
-// import { abis } from '@/lib/contracts'; // No longer needed directly here if event parsing moved
+import DOMPurify from 'dompurify'; // <--- NEW: Import DOMPurify
 
 export default function CreateGoalPage() {
-  // Destructure 'signer' and 'userAddress' from useAuth
   const { isAuthenticated, walletAddress, userAddress, signer, connectWallet, disconnectWallet, signIn, signOut, isSignInLoading, isWalletConnecting } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
@@ -33,12 +31,10 @@ export default function CreateGoalPage() {
     deadline: new Date(),
     stake: "",
     refereeAddress: "",
-    // NEW: Add success and failure recipient addresses to form data
-    successRecipientAddress: "", // Will be defaulted by useEffect
+    successRecipientAddress: "",
     failureRecipientAddress: "",
   })
 
-  // Set default successRecipientAddress when walletAddress becomes available
   useEffect(() => {
     if (walletAddress && formData.successRecipientAddress === "") {
       setFormData((prev) => ({ ...prev, successRecipientAddress: walletAddress }));
@@ -60,7 +56,6 @@ export default function CreateGoalPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Ensure user is authenticated
     if (!isAuthenticated) {
       toast({
         title: "Authentication required",
@@ -70,7 +65,6 @@ export default function CreateGoalPage() {
       return
     }
 
-    // Ensure wallet is connected and signer is available
     if (!walletAddress || !signer) {
       toast({
         title: "Wallet not connected",
@@ -83,17 +77,25 @@ export default function CreateGoalPage() {
     setIsSubmitting(true)
 
     try {
+      // --- NEW: Sanitize all relevant string inputs ---
+      const sanitizedTitle = DOMPurify.sanitize(formData.title);
+      const sanitizedDescription = DOMPurify.sanitize(formData.description);
+      const sanitizedRefereeAddress = DOMPurify.sanitize(formData.refereeAddress);
+      const sanitizedSuccessRecipientAddress = DOMPurify.sanitize(formData.successRecipientAddress);
+      const sanitizedFailureRecipientAddress = DOMPurify.sanitize(formData.failureRecipientAddress);
+      // 'stake' is a number, no XSS risk directly.
+      // 'deadline' is a Date object, no XSS risk directly.
+
       // Phase 1: Create the goal on the blockchain
-      // Now, createGoalOnChain directly returns the receipt and contractGoalId
       const { receipt, contractGoalId } = await createGoalOnChain({
-        title: formData.title,
-        description: formData.description,
+        title: sanitizedTitle, // Use sanitized value
+        description: sanitizedDescription, // Use sanitized value
         deadline: formData.deadline,
         stake: formData.stake,
-        refereeAddress: formData.refereeAddress,
-        successRecipientAddress: formData.successRecipientAddress, // Pass new address
-        failureRecipientAddress: formData.failureRecipientAddress, // Pass new address
-        signer: signer, // Pass the signer
+        refereeAddress: sanitizedRefereeAddress, // Use sanitized value
+        successRecipientAddress: sanitizedSuccessRecipientAddress, // Use sanitized value
+        failureRecipientAddress: sanitizedFailureRecipientAddress, // Use sanitized value
+        signer: signer,
       })
 
       console.log("Blockchain transaction confirmed:", receipt);
@@ -101,14 +103,14 @@ export default function CreateGoalPage() {
 
       // Phase 2: Store the goal in Supabase (ONLY if blockchain was successful)
       const goal = await createGoal({
-        title: formData.title,
-        description: formData.description,
+        title: sanitizedTitle, // Use sanitized value
+        description: sanitizedDescription, // Use sanitized value
         deadline: formData.deadline.toISOString(),
-        creator_id: userAddress, // Use userAddress from useAuth()
-        referee_id: null, // We'll update this once we have a way to look up users by wallet address
+        creator_id: userAddress,
+        referee_id: null,
         stake_amount: formData.stake,
         status: "active",
-        contract_goal_id: contractGoalId, // Store the contract's unique goal ID
+        contract_goal_id: contractGoalId,
       })
 
       toast({
@@ -120,7 +122,7 @@ export default function CreateGoalPage() {
     } catch (error: any) {
       console.error("Error creating goal:", error)
       let errorMessage = "Please try again."
-      if (error.code === 4001) { // User rejected transaction in MetaMask
+      if (error.code === 4001) {
         errorMessage = "Transaction was rejected by your wallet."
       } else if (error.message) {
         errorMessage = error.message;
@@ -135,7 +137,6 @@ export default function CreateGoalPage() {
     }
   }
 
-  // Display conditions for the form
   if (isWalletConnecting) {
     return (
       <div className="container mx-auto px-4 py-8 text-center">
@@ -232,7 +233,6 @@ export default function CreateGoalPage() {
                 </p>
               </div>
 
-              {/* NEW: Success Recipient Address */}
               <div className="space-y-2">
                 <Label htmlFor="successRecipientAddress">Success Recipient Address</Label>
                 <Input
@@ -248,7 +248,6 @@ export default function CreateGoalPage() {
                 </p>
               </div>
 
-              {/* NEW: Failure Recipient Address */}
               <div className="space-y-2">
                 <Label htmlFor="failureRecipientAddress">Failure Recipient Address</Label>
                 <Input
