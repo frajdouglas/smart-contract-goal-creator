@@ -4,7 +4,7 @@
 import type React from "react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { ethers } from "ethers";
+import { ethers } from "ethers"; // Assuming ethers is still needed for any local parsing (though now mostly in contract-interactions)
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -17,14 +17,29 @@ import { createGoalOnChain } from "@/lib/contract-interactions"
 import { useAuth } from "@/components/providers/auth-provider"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
-import DOMPurify from 'dompurify'; // <--- NEW: Import DOMPurify
+import DOMPurify from 'dompurify';
+
+// NEW: Import AlertDialog components
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 export default function CreateGoalPage() {
-  const { isAuthenticated, walletAddress, userAddress, signer, connectWallet, disconnectWallet, signIn, signOut, isSignInLoading, isWalletConnecting } = useAuth()
+  const { isAuthenticated, walletAddress, userAddress, signer, isWalletConnecting } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
 
   const [isSubmitting, setIsSubmitting] = useState(false)
+  // NEW: State to control the confirmation dialog visibility
+  const [showConfirmationDialog, setShowConfirmationDialog] = useState(false)
+
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -36,6 +51,8 @@ export default function CreateGoalPage() {
   })
 
   useEffect(() => {
+    // Set default successRecipientAddress when walletAddress becomes available
+    // and only if it hasn't been set by the user or already defaulted
     if (walletAddress && formData.successRecipientAddress === "") {
       setFormData((prev) => ({ ...prev, successRecipientAddress: walletAddress }));
     }
@@ -53,16 +70,18 @@ export default function CreateGoalPage() {
     }
   }
 
+  // This function now *only* opens the confirmation dialog
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
+    // Basic authentication and wallet checks moved here, before opening dialog
     if (!isAuthenticated) {
       toast({
         title: "Authentication required",
         description: "Please sign in to create a goal.",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
     if (!walletAddress || !signer) {
@@ -70,60 +89,64 @@ export default function CreateGoalPage() {
         title: "Wallet not connected",
         description: "Please connect your wallet and ensure it's ready to stake ETH.",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
-    setIsSubmitting(true)
+    // NEW: Open the confirmation dialog
+    setShowConfirmationDialog(true);
+  };
+
+  // NEW: This function handles the actual blockchain transaction and DB write
+  const handleConfirmCreateGoal = async () => {
+    setIsSubmitting(true); // Indicate that the submission process has started
 
     try {
-      // --- NEW: Sanitize all relevant string inputs ---
+      // Sanitize all relevant string inputs right before use
       const sanitizedTitle = DOMPurify.sanitize(formData.title);
       const sanitizedDescription = DOMPurify.sanitize(formData.description);
       const sanitizedRefereeAddress = DOMPurify.sanitize(formData.refereeAddress);
       const sanitizedSuccessRecipientAddress = DOMPurify.sanitize(formData.successRecipientAddress);
       const sanitizedFailureRecipientAddress = DOMPurify.sanitize(formData.failureRecipientAddress);
-      // 'stake' is a number, no XSS risk directly.
-      // 'deadline' is a Date object, no XSS risk directly.
 
       // Phase 1: Create the goal on the blockchain
       const { receipt, contractGoalId } = await createGoalOnChain({
-        title: sanitizedTitle, // Use sanitized value
-        description: sanitizedDescription, // Use sanitized value
+        title: sanitizedTitle,
+        description: sanitizedDescription,
         deadline: formData.deadline,
         stake: formData.stake,
-        refereeAddress: sanitizedRefereeAddress, // Use sanitized value
-        successRecipientAddress: sanitizedSuccessRecipientAddress, // Use sanitized value
-        failureRecipientAddress: sanitizedFailureRecipientAddress, // Use sanitized value
-        signer: signer,
-      })
+        refereeAddress: sanitizedRefereeAddress,
+        successRecipientAddress: sanitizedSuccessRecipientAddress,
+        failureRecipientAddress: sanitizedFailureRecipientAddress,
+        signer: signer!, // Use non-null assertion as signer is checked before dialog opens
+      });
 
       console.log("Blockchain transaction confirmed:", receipt);
       console.log("Extracted Contract Goal ID:", contractGoalId);
 
       // Phase 2: Store the goal in Supabase (ONLY if blockchain was successful)
       const goal = await createGoal({
-        title: sanitizedTitle, // Use sanitized value
-        description: sanitizedDescription, // Use sanitized value
+        title: sanitizedTitle,
+        description: sanitizedDescription,
         deadline: formData.deadline.toISOString(),
-        creator_id: userAddress,
+        creator_id: userAddress!, // Use non-null assertion as userAddress is from isAuthenticated
         referee_id: null,
         stake_amount: formData.stake,
         status: "active",
         contract_goal_id: contractGoalId,
-      })
+      });
 
       toast({
         title: "Goal created successfully!",
         description: "Your ETH has been staked in the escrow contract and saved to our database.",
-      })
+      });
 
-      router.push(`/goals/${goal.id}`)
+      router.push(`/goals/${goal.id}`);
     } catch (error: any) {
-      console.error("Error creating goal:", error)
-      let errorMessage = "Please try again."
+      console.error("Error creating goal:", error);
+      let errorMessage = "Please try again.";
       if (error.code === 4001) {
-        errorMessage = "Transaction was rejected by your wallet."
+        errorMessage = "Transaction was rejected by your wallet.";
       } else if (error.message) {
         errorMessage = error.message;
       }
@@ -131,12 +154,14 @@ export default function CreateGoalPage() {
         title: "Failed to create goal",
         description: errorMessage,
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false); // Reset submitting state
+      setShowConfirmationDialog(false); // Close the dialog
     }
-  }
+  };
 
+  // Display conditions for the form
   if (isWalletConnecting) {
     return (
       <div className="container mx-auto px-4 py-8 text-center">
@@ -159,7 +184,7 @@ export default function CreateGoalPage() {
           </Button>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -170,7 +195,7 @@ export default function CreateGoalPage() {
             <CardTitle>Create New Goal</CardTitle>
             <CardDescription>Set your goal, stake ETH, and assign a referee to verify completion</CardDescription>
           </CardHeader>
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit}> {/* This now opens the dialog */}
             <CardContent className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="title">Goal Title</Label>
@@ -268,13 +293,43 @@ export default function CreateGoalPage() {
               <Button type="button" variant="outline" onClick={() => router.push("/")}>
                 Cancel
               </Button>
+              {/* This button now triggers the confirmation dialog */}
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Creating..." : "Create & Stake ETH"}
+                Create & Stake ETH
               </Button>
             </CardFooter>
           </form>
         </Card>
       </div>
+
+      {/* NEW: Confirmation Dialog */}
+      <AlertDialog open={showConfirmationDialog} onOpenChange={setShowConfirmationDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Goal Creation & ETH Stake</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>Please review the details below before proceeding. Once confirmed, your ETH will be staked on the blockchain.</p>
+              <ul className="list-disc list-inside text-sm mt-2 space-y-1">
+                <li><strong>Goal Title:</strong> {formData.title}</li>
+                <li><strong>Stake Amount:</strong> {formData.stake} ETH</li>
+                <li><strong>Deadline:</strong> {formData.deadline.toLocaleDateString()}</li>
+                <li><strong>Referee Address:</strong> {formData.refereeAddress}</li>
+                <li><strong>Success Recipient:</strong> {formData.successRecipientAddress}</li>
+                <li><strong>Failure Recipient:</strong> {formData.failureRecipientAddress}</li>
+              </ul>
+              <p className="font-semibold text-destructive">
+                Ensure all addresses are correct. This action cannot be reversed on-chain.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSubmitting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmCreateGoal} disabled={isSubmitting}>
+              {isSubmitting ? "Processing..." : "Confirm & Stake"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
