@@ -17,9 +17,10 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 
 export default function CreateGoalPage() {
+  const { isAuthenticated, walletAddress, connectWallet, disconnectWallet, signIn, signOut, isSignInLoading, isWalletConnecting } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
-  const { user, walletAddress } = useAuth()
+  // const { user, walletAddress } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     title: "",
@@ -43,14 +44,14 @@ export default function CreateGoalPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!user) {
-      toast({
-        title: "Authentication required",
-        description: "Please sign in to create a goal",
-        variant: "destructive",
-      })
-      return
-    }
+    // if (!user) {
+    //   toast({
+    //     title: "Authentication required",
+    //     description: "Please sign in to create a goal",
+    //     variant: "destructive",
+    //   })
+    //   return
+    // }
 
     if (!walletAddress) {
       toast({
@@ -102,7 +103,7 @@ export default function CreateGoalPage() {
     }
   }
 
-  if (!user || !walletAddress) {
+  if (!isAuthenticated ) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto">
