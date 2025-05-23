@@ -3,10 +3,11 @@
 import type React from "react";
 import { createContext, useContext, useState, useEffect } from "react";
 import { ethers } from "ethers";
-import { deleteCookie } from "cookies-next";
 import { useSDK } from "@metamask/sdk-react";
 import { postPublicAddress } from "@/lib/api/postPublicAddress";
 import { verifySignature } from "@/lib/api/verifySignature";
+import { validateAuthToken } from "@/lib/api/validateAuthToken";
+import { deleteAuthCookie } from "@/lib/api/deleteAuthCookie";
 
 type AuthContextType = {
   isAuthenticated: boolean;
@@ -33,6 +34,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentSigner, setCurrentSigner] = useState<ethers.Signer | null>(null);
 
   const { sdk, account, connected } = useSDK();
+
+  useEffect(() => {
+    const performAuthCheck = async () => {
+      if (connected) {
+        setIsSignInLoading(true)
+        try {
+          const { walletAddress: decodedAddress } = await validateAuthToken();
+          if (account && decodedAddress.toLowerCase() !== account.toLowerCase()) {
+            console.warn(
+              "Authentication mismatch detected:",
+              "Token:", decodedAddress,
+              "MetaMask:", account,
+              ". Forcing sign out."
+            );
+            resetAuthState();
+          } else {
+            setIsAuthenticated(true);
+          }
+        } catch (error) {
+          console.warn(error);
+        }
+      }
+
+      setIsSignInLoading(false)
+    };
+
+    performAuthCheck();
+  }, [connected]);
 
   useEffect(() => {
     async function setupEthersObjects() {
@@ -90,7 +119,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUserAddress(null);
     setCurrentProvider(null);
     setCurrentSigner(null);
-    deleteCookie('authToken');
   };
 
   const signIn = async () => {
@@ -127,10 +155,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
-    if (connected) {
-        sdk?.terminate();
+    try {
+      await deleteAuthCookie();
+      resetAuthState();
+    } catch (error) {
+      console.error("Failed to sign out on backend, proceeding with client-side cleanup:", error, "please delete 'authtoken' cookie manually");
     }
-    resetAuthState();
   };
 
   const value = {
