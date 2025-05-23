@@ -11,7 +11,6 @@ export default async function upsert(req: NextApiRequest, res: NextApiResponse) 
     }
 
     const authToken = req.cookies.authToken;
-
     if (!authToken) {
         return res.status(401).json({ message: 'Authentication required: No auth token found.' });
     }
@@ -21,7 +20,7 @@ export default async function upsert(req: NextApiRequest, res: NextApiResponse) 
 
     try {
         decodedToken = jwt.verify(authToken, JWT_SECRET) as jwt.JwtPayload;
-        walletAddress = decodedToken.walletAddress as string;
+        walletAddress = decodedToken.address as string;
 
         if (!walletAddress) {
             throw new Error('Wallet address not found in authentication token payload.');
@@ -39,7 +38,7 @@ export default async function upsert(req: NextApiRequest, res: NextApiResponse) 
             .from('profiles')
             .select('*')
             .eq('wallet_address', lowercasedWalletAddress)
-            .single(); 
+            .single();
 
         // If no row was found (PGRST116 is the error code for "no rows found in single()"), then insert.
         if (selectError && selectError.code === 'PGRST116') {
@@ -48,7 +47,7 @@ export default async function upsert(req: NextApiRequest, res: NextApiResponse) 
                 .from('profiles')
                 .insert({ wallet_address: lowercasedWalletAddress })
                 .select('*')
-                .single(); 
+                .single();
             if (insertError) {
                 console.error('Error inserting new profile:', insertError);
                 return res.status(500).json({ message: 'Failed to create user profile.', details: insertError.message });
@@ -61,7 +60,7 @@ export default async function upsert(req: NextApiRequest, res: NextApiResponse) 
             return res.status(500).json({ message: 'Failed to check user profile.', details: selectError.message });
         }
 
-         return res.status(200).json({ message: 'Profile already exists.', profile: profile });
+        return res.status(200).json({ message: 'Profile already exists.', profile: profile });
 
     } catch (error: any) {
         console.error('An unexpected error occurred during profile management:', error.message);

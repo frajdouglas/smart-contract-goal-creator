@@ -9,6 +9,9 @@ import { ConnectWallet } from "@/components/connect-wallet"
 import { ConnectWalletButton } from "@/components/ui/connectWalletButton"
 import { Badge } from "@/components/ui/badge"
 import type { Goal } from "@/types/database"
+import { upsertProfile } from "@/lib/api/upsertProfile"
+import { useEffect } from "react"
+import { useAuth } from "@/components/providers/auth-provider"
 
 interface HomePageProps {
   recentGoals?: Goal[]
@@ -16,8 +19,21 @@ interface HomePageProps {
 
 // Changed to a client component with props
 export default function HomePage({ recentGoals = [] }: HomePageProps): React.ReactNode {
+  const { walletAddress, isAuthenticated } = useAuth()
 
-
+  useEffect(() => {
+    if( isAuthenticated ) {
+    const fetchOrCreateProfile = async () => {
+      try {
+        const response = await upsertProfile()
+        console.log("Profile upserted:", response.profile)
+      } catch (error) {
+        console.error("Error upserting profile:", error)
+      }
+    }
+    fetchOrCreateProfile()
+  }
+  }, [walletAddress, isAuthenticated])
 
 
   return (
@@ -33,10 +49,10 @@ export default function HomePage({ recentGoals = [] }: HomePageProps): React.Rea
         <div className="w-full max-w-md">
 
           <ConnectWallet />
-                            {/* <MetaMaskProvider debug={false} sdkOptions={sdkOptions}> */}
+          {/* <MetaMaskProvider debug={false} sdkOptions={sdkOptions}> */}
 
           {/* <ConnectWalletButton/> */}
-                  {/* </MetaMaskProvider> */}
+          {/* </MetaMaskProvider> */}
 
         </div>
 
