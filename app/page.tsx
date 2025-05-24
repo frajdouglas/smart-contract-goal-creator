@@ -61,7 +61,8 @@ export default function HomePage({ recentGoals = [] }: HomePageProps): React.Rea
         try {
           const response = await getGoals();
           // Filter for active goals (status 0: Pending)
-          const activeGoals = response.goals.filter(goal => goal.status === 0);
+          console.log("Fetched user goals:", response.goals);
+          const activeGoals = response.goals.filter(goal => goal.status === '0');
           setUserGoals(activeGoals);
           toast({
             title: "Your goals loaded!",
@@ -89,12 +90,12 @@ export default function HomePage({ recentGoals = [] }: HomePageProps): React.Rea
   }, [walletAddress, isAuthenticated, toast]); // Dependencies for useEffect
 
   // Helper function to get status text
-  const getStatusText = (status: number) => {
+  const getStatusText = (status: string) => {
     switch (status) {
-      case 0: return "Pending";
-      case 1: return "Met";
-      case 4: return "Funds Withdrawn (Success)";
-      case 5: return "Funds Withdrawn (Failure/Expired)";
+      case '0': return "Pending";
+      case '1': return "Referee marked as met";
+      case '4': return "Funds transferred to Success Recipient";
+      case '5': return "Funds transferred to Failure Recipient";
       default: return "Unknown";
     }
   };
