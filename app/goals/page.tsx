@@ -11,8 +11,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/components/providers/auth-provider";
-import { getGoals,FetchedGoal } from "@/lib/api/getGoals";
-import { ethers } from "ethers";
+import { getGoals, FetchedGoal } from "@/lib/api/getGoals";
+import { ethers } from "ethers"; // Import ethers for address checksumming and shortening
 
 import {
   Table,
@@ -56,6 +56,17 @@ export default function GoalsPage() {
       case '4': return "bg-green-700 hover:bg-green-800"; // Success Withdrawn
       case '5': return "bg-red-500 hover:bg-red-600"; // Failure Withdrawn
       default: return "bg-gray-500 hover:bg-gray-600";
+    }
+  };
+
+  // Helper function to shorten addresses for display
+  const shortenAddress = (address: string | null | undefined) => {
+    if (!address) return "N/A";
+    try {
+      const checksumAddress = ethers.getAddress(address);
+      return `${checksumAddress.substring(0, 6)}...${checksumAddress.substring(checksumAddress.length - 4)}`;
+    } catch {
+      return "Invalid Address"; // Fallback for malformed or null addresses
     }
   };
 
@@ -202,6 +213,8 @@ export default function GoalsPage() {
                     <TableHead>Title</TableHead>
                     <TableHead>Creator</TableHead>
                     <TableHead>Referee</TableHead>
+                    <TableHead>Success Recipient</TableHead> {/* Added Success Recipient Column Header */}
+                    <TableHead>Failure Recipient</TableHead> {/* Added Failure Recipient Column Header */}
                     <TableHead>Stake</TableHead>
                     <TableHead>Deadline</TableHead>
                     <TableHead>Status</TableHead>
@@ -213,12 +226,18 @@ export default function GoalsPage() {
                     <TableRow key={goal.id}>
                       <TableCell className="font-medium">{goal.title}</TableCell>
                       <TableCell>
-                        {/* Display a shortened checksummed address for creator */}
-                        {ethers.getAddress(goal.creator_address).substring(0, 6)}...
+                        {shortenAddress(goal.creator_address)}
                       </TableCell>
                       <TableCell>
-                        {/* Display a shortened checksummed address for referee */}
-                        {ethers.getAddress(goal.referee_address).substring(0, 6)}...
+                        {shortenAddress(goal.referee_address)}
+                      </TableCell>
+                      {/* Added Success Recipient Cell */}
+                      <TableCell>
+                        {shortenAddress(goal.success_recipient_address)}
+                      </TableCell>
+                      {/* Added Failure Recipient Cell */}
+                      <TableCell>
+                        {shortenAddress(goal.failure_recipient_address)}
                       </TableCell>
                       <TableCell>{goal.stake_amount} ETH</TableCell>
                       <TableCell>
