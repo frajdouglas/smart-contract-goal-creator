@@ -1,291 +1,261 @@
-"use client"
+// src/app/goals/page.tsx
+"use client";
 
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { CheckCircle, XCircle, AlertCircle } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
-import { useAuth } from "@/components/providers/auth-provider"
-import { getGoalsByReferee, updateGoalStatus } from "@/lib/database"
-import { verifyGoalCompletion, rejectGoalCompletion } from "@/lib/contract-interactions"
-import type { Goal } from "@/types/database"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { useRouter } from "next/navigation"
-import Link from "next/link"
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/components/providers/auth-provider";
+import { getRefereeGoals, FetchedGoal } from "@/lib/api/getRefereeGoals";
+import { ethers } from "ethers"; // Import ethers for address checksumming and shortening
 
-export default function RefereeDashboard() {
-  const router = useRouter()
-  const { user } = useAuth()
-  const [goals, setGoals] = useState<Goal[]>([])
-  const [loading, setLoading] = useState(true)
-  const { toast } = useToast()
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
+// Define possible filter states
+type GoalFilter = "all" | "active" | "completed" | "failed";
+
+export default function RefereeGoalsPage() {
+  const { toast } = useToast();
+  const { isAuthenticated, isWalletConnecting } = useAuth();
+
+  const [allGoals, setAllGoals] = useState<FetchedGoal[]>([]);
+  const [filteredGoals, setFilteredGoals] = useState<FetchedGoal[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // State to manage the current filter, defaults to "all"
+  const [currentFilter, setCurrentFilter] = useState<GoalFilter>("all");
+
+  // Helper functions for status text and badge styling
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case '0': return "Pending";
+      case '1': return "Referee marked as met";
+      case '4': return "Funds transferred to Success Recipient";
+      case '5': return "Funds transferred to Failure Recipient";
+      default: return "Unknown";
+    }
+  };
+
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case '0': return "bg-blue-500 hover:bg-blue-600"; // Pending
+      case '1': return "bg-green-500 hover:bg-green-600"; // Met (intermediate)
+      case '4': return "bg-green-700 hover:bg-green-800"; // Success Withdrawn
+      case '5': return "bg-red-500 hover:bg-red-600"; // Failure Withdrawn
+      default: return "bg-gray-500 hover:bg-gray-600";
+    }
+  };
+
+  // Helper function to shorten addresses for display
+  const shortenAddress = (address: string | null | undefined) => {
+    if (!address) return "N/A";
+    try {
+      const checksumAddress = ethers.getAddress(address);
+      return `${checksumAddress.substring(0, 6)}...${checksumAddress.substring(checksumAddress.length - 4)}`;
+    } catch {
+      return "Invalid Address"; // Fallback for malformed or null addresses
+    }
+  };
+
+  // Effect to fetch all goals
   useEffect(() => {
     const fetchGoals = async () => {
-      if (!user) {
-        setLoading(false)
-        return
+      if (!isAuthenticated) {
+        setIsLoading(false);
+        setError("Please connect your wallet to view goals.");
+        setAllGoals([]);
+        return;
       }
 
+      setIsLoading(true);
+      setError(null);
       try {
-        const data = await getGoalsByReferee(user.id)
-        setGoals(data)
-      } catch (error) {
-        console.error("Error fetching goals:", error)
+        const response = await getRefereeGoals();
+        setAllGoals(response.goals);
         toast({
-          title: "Error fetching goals",
-          description: "Please try again later",
+          title: "Goals to referee loaded!",
+          description: `Found ${response.goals.length} goals.`,
+        });
+      } catch (err: any) {
+        console.error("Failed to fetch goals:", err);
+        setError(err.message || "Failed to load goals.");
+        toast({
+          title: "Failed to load goals",
+          description: err.message || "Please try again.",
           variant: "destructive",
-        })
+        });
       } finally {
-        setLoading(false)
+        setIsLoading(false);
       }
+    };
+
+    fetchGoals();
+  }, [isAuthenticated, toast]);
+
+  // Effect to filter goals whenever allGoals or currentFilter changes
+  useEffect(() => {
+    let filtered: FetchedGoal[] = [];
+    if (currentFilter === "all") {
+      filtered = allGoals;
+    } else if (currentFilter === "active") {
+      filtered = allGoals.filter(goal => goal.status === '0');
+    } else if (currentFilter === "completed") {
+      filtered = allGoals.filter(goal => goal.status === '1' || goal.status === '4');
+    } else if (currentFilter === "failed") {
+      filtered = allGoals.filter(goal => goal.status === '5');
     }
+    setFilteredGoals(filtered);
+  }, [allGoals, currentFilter]); // Depend on allGoals and currentFilter
 
-    fetchGoals()
-  }, [user, toast])
+  // Handle filter button clicks - simply updates the state
+  const handleFilterChange = (filter: GoalFilter) => {
+    setCurrentFilter(filter);
+  };
 
-  const handleVerify = async (goal: Goal) => {
-    if (!goal.contract_goal_id) {
-      toast({
-        title: "Cannot verify goal",
-        description: "This goal is not linked to a blockchain contract",
-        variant: "destructive",
-      })
-      return
-    }
-
-    try {
-      // First update on blockchain
-      await verifyGoalCompletion(goal.contract_goal_id)
-
-      // Then update in database
-      await updateGoalStatus(goal.id, "completed")
-
-      // Update UI optimistically
-      setGoals(goals.map((g) => (g.id === goal.id ? { ...g, status: "completed" } : g)))
-
-      toast({
-        title: "Goal verified successfully",
-        description: "The staked ETH has been released to the creator",
-      })
-    } catch (error: any) {
-      toast({
-        title: "Verification failed",
-        description: error.message || "Please try again",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const handleReject = async (goal: Goal) => {
-    if (!goal.contract_goal_id) {
-      toast({
-        title: "Cannot reject goal",
-        description: "This goal is not linked to a blockchain contract",
-        variant: "destructive",
-      })
-      return
-    }
-
-    try {
-      // First update on blockchain
-      await rejectGoalCompletion(goal.contract_goal_id)
-
-      // Then update in database
-      await updateGoalStatus(goal.id, "failed")
-
-      // Update UI optimistically
-      setGoals(goals.map((g) => (g.id === goal.id ? { ...g, status: "failed" } : g)))
-
-      toast({
-        title: "Goal rejected",
-        description: "The goal has been marked as failed",
-      })
-    } catch (error: any) {
-      toast({
-        title: "Rejection failed",
-        description: error.message || "Please try again",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const pendingGoals = goals.filter((goal) => goal.status === "active" && goal.evidence)
-  const completedGoals = goals.filter((goal) => goal.status === "completed")
-  const failedGoals = goals.filter((goal) => goal.status === "failed")
-
-  if (!user) {
+  // --- Loading and Error States ---
+  if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <div className="max-w-3xl mx-auto">
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Authentication required</AlertTitle>
-            <AlertDescription>Please sign in to access the referee dashboard.</AlertDescription>
-          </Alert>
-          <Button className="mt-4" onClick={() => router.push("/")}>
-            Back to Home
-          </Button>
+        <div className="flex space-x-2 mb-6">
+          <Skeleton className="h-10 w-20" />
+          <Skeleton className="h-10 w-20" />
+          <Skeleton className="h-10 w-20" />
+          <Skeleton className="h-10 w-20" />
+        </div>
+        <div className="space-y-4">
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
         </div>
       </div>
-    )
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <Alert variant="destructive" className="max-w-4xl mx-auto">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+        {!isAuthenticated && !isWalletConnecting && (
+          <p className="text-center text-muted-foreground mt-4">
+            Please connect your wallet to view goals.
+          </p>
+        )}
+      </div>
+    );
   }
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="max-w-3xl mx-auto">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold">Referee Dashboard</h1>
-          <p className="text-muted-foreground">Verify goal completions and release staked ETH</p>
-        </div>
 
-        <Tabs defaultValue="pending">
-          <TabsList className="grid w-full grid-cols-3 mb-6">
-            <TabsTrigger value="pending">Pending ({pendingGoals.length})</TabsTrigger>
-            <TabsTrigger value="completed">Completed ({completedGoals.length})</TabsTrigger>
-            <TabsTrigger value="failed">Failed ({failedGoals.length})</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="pending">
-            {loading ? (
-              <p className="text-center py-8">Loading pending goals...</p>
-            ) : pendingGoals.length === 0 ? (
-              <p className="text-center py-8 text-muted-foreground">No goals pending verification</p>
-            ) : (
-              pendingGoals.map((goal) => (
-                <Card key={goal.id} className="mb-4">
-                  <CardHeader className="pb-2">
-                    <div className="flex justify-between items-start">
-                      <CardTitle className="text-lg">{goal.title}</CardTitle>
-                      <Badge variant="outline">Pending Verification</Badge>
-                    </div>
-                    <CardDescription>{goal.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div>
-                          <p className="text-muted-foreground">Deadline</p>
-                          <p className="font-medium">
-                            {goal.deadline ? new Date(goal.deadline).toLocaleDateString() : "No deadline"}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground">Stake</p>
-                          <p className="font-medium">{goal.stake_amount} ETH</p>
-                        </div>
-                      </div>
-
-                      <div className="text-sm">
-                        <p className="text-muted-foreground">Evidence</p>
-                        <p className="font-medium break-words">{goal.evidence}</p>
-                      </div>
-
-                      <div className="flex gap-2 pt-2">
-                        <Button className="flex-1" onClick={() => handleVerify(goal)}>
-                          <CheckCircle className="mr-2 h-4 w-4" />
-                          Verify Completion
-                        </Button>
-                        <Button variant="outline" className="flex-1" onClick={() => handleReject(goal)}>
-                          <XCircle className="mr-2 h-4 w-4" />
-                          Reject
-                        </Button>
-                      </div>
-
-                      <Button variant="link" asChild className="w-full">
-                        <Link href={`/goals/${goal.id}`}>View Full Details</Link>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </TabsContent>
-
-          <TabsContent value="completed">
-            {loading ? (
-              <p className="text-center py-8">Loading completed goals...</p>
-            ) : completedGoals.length === 0 ? (
-              <p className="text-center py-8 text-muted-foreground">No completed goals</p>
-            ) : (
-              completedGoals.map((goal) => (
-                <Card key={goal.id} className="mb-4">
-                  <CardHeader className="pb-2">
-                    <div className="flex justify-between items-start">
-                      <CardTitle className="text-lg">{goal.title}</CardTitle>
-                      <Badge className="bg-green-500">Completed</Badge>
-                    </div>
-                    <CardDescription>{goal.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div>
-                          <p className="text-muted-foreground">Deadline</p>
-                          <p className="font-medium">
-                            {goal.deadline ? new Date(goal.deadline).toLocaleDateString() : "No deadline"}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground">Stake</p>
-                          <p className="font-medium">{goal.stake_amount} ETH</p>
-                        </div>
-                      </div>
-
-                      <Button variant="link" asChild className="w-full">
-                        <Link href={`/goals/${goal.id}`}>View Full Details</Link>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </TabsContent>
-
-          <TabsContent value="failed">
-            {loading ? (
-              <p className="text-center py-8">Loading failed goals...</p>
-            ) : failedGoals.length === 0 ? (
-              <p className="text-center py-8 text-muted-foreground">No failed goals</p>
-            ) : (
-              failedGoals.map((goal) => (
-                <Card key={goal.id} className="mb-4">
-                  <CardHeader className="pb-2">
-                    <div className="flex justify-between items-start">
-                      <CardTitle className="text-lg">{goal.title}</CardTitle>
-                      <Badge className="bg-red-500">Failed</Badge>
-                    </div>
-                    <CardDescription>{goal.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div>
-                          <p className="text-muted-foreground">Deadline</p>
-                          <p className="font-medium">
-                            {goal.deadline ? new Date(goal.deadline).toLocaleDateString() : "No deadline"}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground">Stake</p>
-                          <p className="font-medium">{goal.stake_amount} ETH</p>
-                        </div>
-                      </div>
-
-                      <Button variant="link" asChild className="w-full">
-                        <Link href={`/goals/${goal.id}`}>View Full Details</Link>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </TabsContent>
-        </Tabs>
+      <div className="flex space-x-2 mb-6">
+        <Button
+          variant={currentFilter === "all" ? "default" : "outline"}
+          onClick={() => handleFilterChange("all")}
+        >
+          All
+        </Button>
+        <Button
+          variant={currentFilter === "active" ? "default" : "outline"}
+          onClick={() => handleFilterChange("active")}
+        >
+          Active
+        </Button>
+        <Button
+          variant={currentFilter === "completed" ? "default" : "outline"}
+          onClick={() => handleFilterChange("completed")}
+        >
+          Completed
+        </Button>
+        <Button
+          variant={currentFilter === "failed" ? "default" : "outline"}
+          onClick={() => handleFilterChange("failed")}
+        >
+          Failed
+        </Button>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Referee Goal List</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {filteredGoals.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">
+              No goals found for the "{currentFilter}" filter.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Creator</TableHead>
+                    <TableHead>Referee</TableHead>
+                    <TableHead>Success Recipient</TableHead> {/* Added Success Recipient Column Header */}
+                    <TableHead>Failure Recipient</TableHead> {/* Added Failure Recipient Column Header */}
+                    <TableHead>Stake</TableHead>
+                    <TableHead>Deadline</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredGoals.map((goal) => (
+                    <TableRow key={goal.id}>
+                      <TableCell className="font-medium">{goal.title}</TableCell>
+                      <TableCell>
+                        {shortenAddress(goal.creator_address)}
+                      </TableCell>
+                      <TableCell>
+                        {shortenAddress(goal.referee_address)}
+                      </TableCell>
+                      {/* Added Success Recipient Cell */}
+                      <TableCell>
+                        {shortenAddress(goal.success_recipient_address)}
+                      </TableCell>
+                      {/* Added Failure Recipient Cell */}
+                      <TableCell>
+                        {shortenAddress(goal.failure_recipient_address)}
+                      </TableCell>
+                      <TableCell>{goal.stake_amount} ETH</TableCell>
+                      <TableCell>
+                        {goal.expiry_date ? new Date(goal.expiry_date).toLocaleDateString() : "N/A"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={`text-white ${getStatusBadgeVariant(goal.status)}`}>
+                          {getStatusText(goal.status)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="outline" size="sm" asChild>
+                          <Link href={`/goals/${goal.id}`}>View</Link>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
-  )
+  );
 }
