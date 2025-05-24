@@ -100,11 +100,11 @@ export default function GoalsPage() {
     if (currentFilter === "all") {
       filtered = allGoals;
     } else if (currentFilter === "active") {
-      filtered = allGoals.filter(goal => goal.status === 0);
+      filtered = allGoals.filter(goal => goal.status === '0');
     } else if (currentFilter === "completed") {
-      filtered = allGoals.filter(goal => goal.status === 1 || goal.status === 4);
+      filtered = allGoals.filter(goal => goal.status === '1' || goal.status === '4');
     } else if (currentFilter === "failed") {
-      filtered = allGoals.filter(goal => goal.status === 5);
+      filtered = allGoals.filter(goal => goal.status === '5');
     }
     setFilteredGoals(filtered);
   }, [allGoals, currentFilter]); // Depend on allGoals and currentFilter
