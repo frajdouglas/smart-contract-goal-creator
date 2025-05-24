@@ -12,8 +12,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { DatePicker } from "@/components/date-picker"
 import { useToast } from "@/hooks/use-toast"
-import { createGoal } from "@/lib/database"
-import { createGoalOnChain } from "@/lib/contract-interactions"
+import { createGoal } from "@/lib/api/createGoal"
+import { createGoalOnChain } from "@/lib/contracts/contractsInteractions/createGoalOnChain"
 import { useAuth } from "@/components/providers/auth-provider"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
@@ -42,13 +42,13 @@ export default function CreateGoalPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showConfirmationDialog, setShowConfirmationDialog] = useState(false)
   const [formData, setFormData] = useState<GoalFormData>({
-    title: "",
-    description: "",
+    title: "test",
+    description: "test",
     deadline: new Date(),
-    stake: "",
-    refereeAddress: "",
-    successRecipientAddress: "",
-    failureRecipientAddress: "",
+    stake: "0.001",
+    refereeAddress: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+    successRecipientAddress: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    failureRecipientAddress: "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
   })
   // State for form validation errors, initialized as empty
   const [formErrors, setFormErrors] = useState<FormErrors>({})
@@ -96,10 +96,10 @@ export default function CreateGoalPage() {
 
     // Also perform a basic check that all required fields are filled (even if no blur validation triggered yet)
     const allRequiredFieldsFilled = Object.values(formData).every(value => {
-        // Special handling for Date objects: ensure it's a valid date
-        if (value instanceof Date) return !isNaN(value.getTime());
-        // For strings, check if trimmed value is not empty; otherwise, check for null/undefined
-        return typeof value === 'string' ? value.trim() !== '' : value !== null && value !== undefined;
+      // Special handling for Date objects: ensure it's a valid date
+      if (value instanceof Date) return !isNaN(value.getTime());
+      // For strings, check if trimmed value is not empty; otherwise, check for null/undefined
+      return typeof value === 'string' ? value.trim() !== '' : value !== null && value !== undefined;
     });
 
     return hasNoErrors && allRequiredFieldsFilled;
@@ -110,8 +110,9 @@ export default function CreateGoalPage() {
     e.preventDefault();
 
     // Perform a full form validation using the extracted function
-    const { isValid, errors } = validateForm(formData, walletAddress);
-    setFormErrors(errors); // Update the errors state to display all errors
+    // const { isValid, errors } = validateForm(formData, walletAddress);
+    // setFormErrors(errors); // Update the errors state to display all errors
+    let isValid = true;
 
     if (!isValid) {
       toast({
@@ -158,31 +159,48 @@ export default function CreateGoalPage() {
       const sanitizedFailureRecipientAddress = DOMPurify.sanitize(formData.failureRecipientAddress);
 
       // Phase 1: Create the goal on the blockchain via contract interaction
-      const { receipt, contractGoalId } = await createGoalOnChain({
-        title: sanitizedTitle,
-        description: sanitizedDescription,
-        deadline: formData.deadline,
-        stake: formData.stake,
-        refereeAddress: sanitizedRefereeAddress,
-        successRecipientAddress: sanitizedSuccessRecipientAddress,
-        failureRecipientAddress: sanitizedFailureRecipientAddress,
-        signer: signer!, // 'signer' is guaranteed non-null due to prior checks
-      });
+      // const { receipt, contractGoalId } = await createGoalOnChain({
+      //   title: sanitizedTitle,
+      //   description: sanitizedDescription,
+      //   deadline: formData.deadline,
+      //   stake: formData.stake,
+      //   refereeAddress: sanitizedRefereeAddress,
+      //   successRecipientAddress: sanitizedSuccessRecipientAddress,
+      //   failureRecipientAddress: sanitizedFailureRecipientAddress,
+      //   signer: signer!, // 'signer' is guaranteed non-null due to prior checks
+      // });
 
-      console.log("Blockchain transaction confirmed:", receipt);
-      console.log("Extracted Contract Goal ID:", contractGoalId);
+      // console.log("Blockchain transaction confirmed:", receipt);
+      // console.log("Extracted Contract Goal ID:", contractGoalId);
 
       // Phase 2: Store the goal details in Supabase database
+      // const goal = await createGoal({
+      //   title: sanitizedTitle,
+      //   description: sanitizedDescription,
+      //   deadline: formData.deadline.toISOString(),
+      //   creator_id: userAddress!, // 'userAddress' is guaranteed non-null due to prior checks
+      //   referee_id: null, // Placeholder for future referee user linking
+      //   stake_amount: formData.stake,
+      //   status: "active",
+      //   contract_goal_id: contractGoalId,
+      // });
+
       const goal = await createGoal({
         title: sanitizedTitle,
         description: sanitizedDescription,
-        deadline: formData.deadline.toISOString(),
-        creator_id: userAddress!, // 'userAddress' is guaranteed non-null due to prior checks
-        referee_id: null, // Placeholder for future referee user linking
-        stake_amount: formData.stake,
-        status: "active",
-        contract_goal_id: contractGoalId,
+        expiry_date: formData.deadline.toISOString(), // Ensure date is an ISO string
+        refereeAddress: sanitizedRefereeAddress,
+        successRecipientAddress: sanitizedSuccessRecipientAddress,
+        failureRecipientAddress: sanitizedFailureRecipientAddress,
+        stakeAmount: formData.stake, // Pass the stake amount as string
+        // contractGoalId: contractGoalId, // Pass the ID from the smart contract
+        contractGoalId: '1', // Pass the ID from the smart contract
+
+        // transactionHash: receipt.hash, // Pass the transaction hash from the receipt
+        transactionHash: 'EXAMPLEHASH', // Pass the transaction hash from the receipt
+
       });
+      console.log("Goal created successfully:", goal);
 
       toast({
         title: "Goal created successfully!",
@@ -190,7 +208,7 @@ export default function CreateGoalPage() {
       });
 
       // Redirect to the newly created goal's detail page
-      router.push(`/goals/${goal.id}`);
+      // router.push(`/goals/${goal.id}`);
     } catch (error: any) {
       console.error("Error creating goal:", error);
       let errorMessage = "Please try again.";
@@ -205,12 +223,11 @@ export default function CreateGoalPage() {
         variant: "destructive",
       });
     } finally {
-      setIsSubmitting(false); // Reset submitting state regardless of success/failure
-      setShowConfirmationDialog(false); // Close the dialog
+      setIsSubmitting(false);
+      setShowConfirmationDialog(false);
     }
   };
 
-  // Render loading state while connecting wallet
   if (isWalletConnecting) {
     return (
       <div className="container mx-auto px-4 py-8 text-center">
@@ -219,7 +236,6 @@ export default function CreateGoalPage() {
     );
   }
 
-  // Render authentication required alert if not authenticated
   if (!isAuthenticated) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -237,7 +253,6 @@ export default function CreateGoalPage() {
     )
   }
 
-  // Main form rendering
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-2xl mx-auto">
@@ -248,7 +263,6 @@ export default function CreateGoalPage() {
           </CardHeader>
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-6">
-              {/* Goal Title Field */}
               <div className="space-y-2">
                 <Label htmlFor="title">Goal Title</Label>
                 <Input
@@ -256,6 +270,8 @@ export default function CreateGoalPage() {
                   name="title"
                   placeholder="E.g., Complete 30 days of coding"
                   value={formData.title}
+                  // value={'temptest'}
+
                   onChange={handleChange}
                   onBlur={() => handleBlur('title')} // Validation on blur
                   required
@@ -265,7 +281,6 @@ export default function CreateGoalPage() {
                 )}
               </div>
 
-              {/* Description Field */}
               <div className="space-y-2">
                 <Label htmlFor="description">Description</Label>
                 <Textarea
@@ -273,6 +288,8 @@ export default function CreateGoalPage() {
                   name="description"
                   placeholder="Describe your goal in detail, including how it will be verified"
                   value={formData.description}
+                  // value={'temptest'}
+
                   onChange={handleChange}
                   onBlur={() => handleBlur('description')} // Validation on blur
                   required
@@ -282,7 +299,6 @@ export default function CreateGoalPage() {
                 )}
               </div>
 
-              {/* Deadline and Stake Amount Fields (Grid Layout) */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label>Deadline</Label>
@@ -302,6 +318,8 @@ export default function CreateGoalPage() {
                     min="0.001"
                     placeholder="0.5"
                     value={formData.stake}
+                    // value={0.01}
+
                     onChange={handleChange}
                     onBlur={() => handleBlur('stake')} // Validation on blur
                     required
@@ -320,6 +338,8 @@ export default function CreateGoalPage() {
                   name="refereeAddress"
                   placeholder="0x..."
                   value={formData.refereeAddress}
+                  // value={'0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC'}
+
                   onChange={handleChange}
                   onBlur={() => handleBlur('refereeAddress')} // Validation on blur
                   required
@@ -340,6 +360,8 @@ export default function CreateGoalPage() {
                   name="successRecipientAddress"
                   placeholder="0x..."
                   value={formData.successRecipientAddress}
+                  // value={'0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'}
+
                   onChange={handleChange}
                   onBlur={() => handleBlur('successRecipientAddress')} // Validation on blur
                   required
@@ -359,7 +381,9 @@ export default function CreateGoalPage() {
                   id="failureRecipientAddress"
                   name="failureRecipientAddress"
                   placeholder="0x..."
+                  // value={'0x70997970C51812dc3A010C7d01b50e0d17dc79C8'}
                   value={formData.failureRecipientAddress}
+
                   onChange={handleChange}
                   onBlur={() => handleBlur('failureRecipientAddress')} // Validation on blur
                   required
@@ -378,7 +402,9 @@ export default function CreateGoalPage() {
                 Cancel
               </Button>
               {/* The submit button is disabled if a submission is in progress OR if the form is not valid */}
-              <Button type="submit" disabled={isSubmitting || !isFormValid()}>
+              {/* <Button type="submit" disabled={isSubmitting || !isFormValid()}> */}
+              <Button type="submit">
+
                 Create & Stake ETH
               </Button>
             </CardFooter>

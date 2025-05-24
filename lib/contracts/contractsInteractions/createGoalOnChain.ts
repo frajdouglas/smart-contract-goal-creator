@@ -1,6 +1,7 @@
 // src/lib/contract-interactions.ts
 import { ethers, Contract, Signer } from 'ethers';
-import { deployed, abis } from '@/lib/contracts';
+import deployed from "./localhost.json";
+import goalFactoryArtifact from "./GoalFactory.json";
 
 interface CreateGoalOnChainArgs {
   title: string;
@@ -44,8 +45,8 @@ export async function createGoalOnChain({
 
   // --- Contract Instantiation ---
   const goalFactoryContract = new Contract(
-    deployed.GoalFactory.address,
-    abis.GoalFactory,
+    deployed.address,
+    goalFactoryArtifact.abi,
     signer
   );
 
@@ -75,7 +76,10 @@ export async function createGoalOnChain({
     }
   );
 
-  console.log("Transaction submitted! Hash:", transactionResponse.hash);
+  console.log("Transaction submitted!", transactionResponse);
+
+
+  // console.log("Transaction submitted! Hash:", transactionResponse.hash);
 
   // --- Wait for Confirmation & Extract Event Data ---
   const receipt = await transactionResponse.wait();
@@ -85,7 +89,7 @@ export async function createGoalOnChain({
   }
 
   let contractGoalId: string = receipt.hash; // Default to transaction hash
-
+console.log("Transaction confirmed! Receipt:", receipt);
   // Parse logs to find the GoalCreated event and extract uniqueId
   const goalFactoryInterface = new ethers.Interface(abis.GoalFactory);
   const goalCreatedEvent = receipt.logs
