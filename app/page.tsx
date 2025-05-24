@@ -101,12 +101,12 @@ export default function HomePage({ recentGoals = [] }: HomePageProps): React.Rea
   };
 
   // Helper function to get status badge variant (adjust Tailwind classes as needed)
-  const getStatusBadgeVariant = (status: number) => {
+  const getStatusBadgeVariant = (status: string) => {
     switch (status) {
-      case 0: return "bg-blue-500 hover:bg-blue-600"; // Pending
-      case 1: return "bg-green-500 hover:bg-green-600"; // Met (intermediate)
-      case 4: return "bg-green-700 hover:bg-green-800"; // Success Withdrawn
-      case 5: return "bg-red-500 hover:bg-red-600"; // Failure Withdrawn
+      case '0': return "bg-blue-500 hover:bg-blue-600"; // Pending
+      case '1': return "bg-green-500 hover:bg-green-600"; // Met (intermediate)
+      case '4': return "bg-green-700 hover:bg-green-800"; // Success Withdrawn
+      case '5': return "bg-red-500 hover:bg-red-600"; // Failure Withdrawn
       default: return "bg-gray-500 hover:bg-gray-600";
     }
   };
