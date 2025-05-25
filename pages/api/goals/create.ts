@@ -68,7 +68,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // Standardize the wallet address to lowercase for database consistency.
   const lowercasedUserWalletAddress = userWalletAddress.toLowerCase();
-
+  const lowercasedRefereeAddress = req.body.refereeAddress.toLowerCase();
+  const lowercasedSuccessRecipientAddress = req.body.successRecipientAddress.toLowerCase();
+  const lowercasedFailureRecipientAddress = req.body.failureRecipientAddress.toLowerCase();
   // 2. Parse and Validate Request Body
   const body: GoalApiRequestBody = req.body;
 
@@ -107,10 +109,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ message: 'Stake amount must be a positive number.' });
   }
   if (!contractGoalId || contractGoalId.trim().length === 0) {
-      return res.status(400).json({ message: 'Contract Goal ID is required.' });
+    return res.status(400).json({ message: 'Contract Goal ID is required.' });
   }
   if (!transactionHash || transactionHash.trim().length === 0) {
-      return res.status(400).json({ message: 'Transaction Hash is required.' });
+    return res.status(400).json({ message: 'Transaction Hash is required.' });
   }
 
   // 3. Save Goal to Database (Directly in API route)
@@ -121,9 +123,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       description,
       expiry_date: expiry_date,
       creator_address: lowercasedUserWalletAddress,
-      referee_address: refereeAddress,
-      success_recipient_address: successRecipientAddress,
-      failure_recipient_address: failureRecipientAddress,
+      referee_address: lowercasedRefereeAddress,
+      success_recipient_address: lowercasedSuccessRecipientAddress,
+      failure_recipient_address: lowercasedFailureRecipientAddress,
       stake_amount: stakeAmount, // Ensure this is handled as NUMERIC in DB if it's large
       status: 0, // Default to 'pending' or 'active'
       contract_goal_id: contractGoalId,
@@ -144,7 +146,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (!data) {
-        throw new Error("Supabase returned no data on goal creation.");
+      throw new Error("Supabase returned no data on goal creation.");
     }
 
     // 4. Return Success Response
