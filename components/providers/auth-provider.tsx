@@ -61,7 +61,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     performAuthCheck();
-  }, [connected]);
+  }, [connected, account]);
+
 
   useEffect(() => {
     async function setupEthersObjects() {
