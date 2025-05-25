@@ -1,4 +1,3 @@
-// src/app/create-goal/page.tsx
 "use client"
 
 import type React from "react"
@@ -175,22 +174,18 @@ export default function CreateGoalPage() {
       console.log("Extracted Contract Goal ID:", contractGoalId);
 
 
-      // const goal = await createGoal({
-      //   title: sanitizedTitle,
-      //   description: sanitizedDescription,
-      //   expiry_date: formData.deadline.toISOString(), // Ensure date is an ISO string
-      //   refereeAddress: sanitizedRefereeAddress,
-      //   successRecipientAddress: sanitizedSuccessRecipientAddress,
-      //   failureRecipientAddress: sanitizedFailureRecipientAddress,
-      //   stakeAmount: formData.stake, // Pass the stake amount as string
-      //   // contractGoalId: contractGoalId, // Pass the ID from the smart contract
-      //   contractGoalId: '1', // Pass the ID from the smart contract
-
-      //   // transactionHash: receipt.hash, // Pass the transaction hash from the receipt
-      //   transactionHash: 'EXAMPLEHASH', // Pass the transaction hash from the receipt
-
-      // });
-      // console.log("Goal created successfully:", goal);
+      const goal = await createGoal({
+        title: sanitizedTitle,
+        description: sanitizedDescription,
+        expiry_date: formData.deadline.toISOString(),
+        refereeAddress: sanitizedRefereeAddress,
+        successRecipientAddress: sanitizedSuccessRecipientAddress,
+        failureRecipientAddress: sanitizedFailureRecipientAddress,
+        stakeAmount: formData.stake,
+        contractGoalId: contractGoalId, 
+        transactionHash: receipt.hash,
+      });
+      console.log("Goal created successfully:", goal);
 
       toast({
         title: "Goal created successfully!",

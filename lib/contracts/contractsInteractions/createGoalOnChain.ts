@@ -82,8 +82,10 @@ export async function createGoalOnChain({
     throw new Error("Blockchain transaction failed (reverted on-chain).");
   }
 
-  let contractGoalId: string = receipt.hash; // Default to transaction hash
+  let contractGoalId: string
+
   console.log("Transaction confirmed! Receipt:", receipt);
+
   // Parse logs to find the GoalCreated event and extract uniqueId
   const goalFactoryInterface = new ethers.Interface(goalFactoryArtifact.abi);
   const goalCreatedEvent = receipt.logs
@@ -104,6 +106,5 @@ export async function createGoalOnChain({
     console.warn("GoalCreated event not found in transaction receipt. Using transaction hash as goal ID.");
   }
 
-  // Return the receipt and the extracted goal ID
   return { receipt, contractGoalId };
 }
