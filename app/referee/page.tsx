@@ -39,7 +39,6 @@ export default function RefereeGoalsPage() {
   const [currentFilter, setCurrentFilter] = useState<GoalFilter>("all");
   // State to track which row is expanded
   const [expandedGoalId, setExpandedGoalId] = useState<string | null>(null);
-
   const getStatusText = (status: string) => {
     switch (status) {
       case '0': return "Pending";
@@ -70,7 +69,8 @@ export default function RefereeGoalsPage() {
     }
   };
 
-  const handleSetGoalMet = async (goalId: string, refereeAddress: string, status: string) => {
+  const handleSetGoalMet = async (contract_goal_id: number, refereeAddress: string, status: string) => {
+   console.log(contract_goal_id)
     if (!signer || !walletAddress) {
       toast({
         title: "Error",
@@ -101,18 +101,18 @@ export default function RefereeGoalsPage() {
     setIsSubmitting(true);
     try {
       const receipt = await setGoalMetOnChain({
-        goalId: goalId,
+        contract_goal_id: contract_goal_id,
         signer: signer,
       });
-
+console.log(receipt)
       toast({
         title: "Success!",
-        description: `Goal ${goalId} marked as met. Funds will be transferred. Transaction: ${receipt.hash}`,
+        description: `Goal ${contract_goal_id} marked as met. Funds will be transferred. Transaction: ${receipt.hash}`,
         variant: "default",
       });
       // Refresh the goal list after successful action
-      const response = await getRefereeGoals();
-      setAllGoals(response.goals);
+      // const response = await getRefereeGoals();
+      // setAllGoals(response.goals);
     } catch (err: any) {
       console.error("Failed to mark goal as met:", err);
       toast({
@@ -218,7 +218,6 @@ export default function RefereeGoalsPage() {
       </div>
     );
   }
-
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex space-x-2 mb-6">
@@ -296,7 +295,7 @@ export default function RefereeGoalsPage() {
                             <Button
                               variant="secondary"
                               size="sm"
-                              onClick={() => handleSetGoalMet(goal.id, goal.referee_address, goal.status)}
+                              onClick={() => handleSetGoalMet(goal.contract_goal_id, goal.referee_address, goal.status)}
                               disabled={isSubmitting}
                             >
                               {isSubmitting ? "Marking Met..." : "Mark Met"}
