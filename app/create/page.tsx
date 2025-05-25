@@ -159,48 +159,38 @@ export default function CreateGoalPage() {
       const sanitizedFailureRecipientAddress = DOMPurify.sanitize(formData.failureRecipientAddress);
 
       // Phase 1: Create the goal on the blockchain via contract interaction
-      // const { receipt, contractGoalId } = await createGoalOnChain({
-      //   title: sanitizedTitle,
-      //   description: sanitizedDescription,
-      //   deadline: formData.deadline,
-      //   stake: formData.stake,
-      //   refereeAddress: sanitizedRefereeAddress,
-      //   successRecipientAddress: sanitizedSuccessRecipientAddress,
-      //   failureRecipientAddress: sanitizedFailureRecipientAddress,
-      //   signer: signer!, // 'signer' is guaranteed non-null due to prior checks
-      // });
-
-      // console.log("Blockchain transaction confirmed:", receipt);
-      // console.log("Extracted Contract Goal ID:", contractGoalId);
-
-      // Phase 2: Store the goal details in Supabase database
-      // const goal = await createGoal({
-      //   title: sanitizedTitle,
-      //   description: sanitizedDescription,
-      //   deadline: formData.deadline.toISOString(),
-      //   creator_id: userAddress!, // 'userAddress' is guaranteed non-null due to prior checks
-      //   referee_id: null, // Placeholder for future referee user linking
-      //   stake_amount: formData.stake,
-      //   status: "active",
-      //   contract_goal_id: contractGoalId,
-      // });
-
-      const goal = await createGoal({
-        title: sanitizedTitle,
+      console.log(formData.stake)
+      
+      const { receipt, contractGoalId } = await createGoalOnChain({
         description: sanitizedDescription,
-        expiry_date: formData.deadline.toISOString(), // Ensure date is an ISO string
+        deadline: formData.deadline,
+        stake: formData.stake,
         refereeAddress: sanitizedRefereeAddress,
         successRecipientAddress: sanitizedSuccessRecipientAddress,
         failureRecipientAddress: sanitizedFailureRecipientAddress,
-        stakeAmount: formData.stake, // Pass the stake amount as string
-        // contractGoalId: contractGoalId, // Pass the ID from the smart contract
-        contractGoalId: '1', // Pass the ID from the smart contract
-
-        // transactionHash: receipt.hash, // Pass the transaction hash from the receipt
-        transactionHash: 'EXAMPLEHASH', // Pass the transaction hash from the receipt
-
+        signer: signer!, // 'signer' is guaranteed non-null due to prior checks
       });
-      console.log("Goal created successfully:", goal);
+
+      console.log("Blockchain transaction confirmed:", receipt);
+      console.log("Extracted Contract Goal ID:", contractGoalId);
+
+
+      // const goal = await createGoal({
+      //   title: sanitizedTitle,
+      //   description: sanitizedDescription,
+      //   expiry_date: formData.deadline.toISOString(), // Ensure date is an ISO string
+      //   refereeAddress: sanitizedRefereeAddress,
+      //   successRecipientAddress: sanitizedSuccessRecipientAddress,
+      //   failureRecipientAddress: sanitizedFailureRecipientAddress,
+      //   stakeAmount: formData.stake, // Pass the stake amount as string
+      //   // contractGoalId: contractGoalId, // Pass the ID from the smart contract
+      //   contractGoalId: '1', // Pass the ID from the smart contract
+
+      //   // transactionHash: receipt.hash, // Pass the transaction hash from the receipt
+      //   transactionHash: 'EXAMPLEHASH', // Pass the transaction hash from the receipt
+
+      // });
+      // console.log("Goal created successfully:", goal);
 
       toast({
         title: "Goal created successfully!",

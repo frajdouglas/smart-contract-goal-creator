@@ -1,15 +1,12 @@
-// src/lib/contract-interactions.ts
 import { ethers, Contract, Signer } from 'ethers';
 import deployed from "./localhost.json";
 import goalFactoryArtifact from "./GoalFactory.json";
 
 interface CreateGoalOnChainArgs {
-  title: string;
   description: string;
   deadline: Date;
   stake: string;
   refereeAddress: string;
-  // NEW: Add success and failure recipient addresses
   successRecipientAddress: string;
   failureRecipientAddress: string;
   signer: Signer;
@@ -17,7 +14,6 @@ interface CreateGoalOnChainArgs {
 
 // Update the return type to include the receipt and the extracted contractGoalId
 export async function createGoalOnChain({
-  title,
   description,
   deadline,
   stake,
@@ -51,6 +47,7 @@ export async function createGoalOnChain({
   );
 
   // --- Prepare Transaction Arguments ---
+  console.log(stake)
   const escrowAmount = ethers.parseEther(stake);
   const hashedGoalDescription = ethers.keccak256(ethers.toUtf8Bytes(description));
   const deadlineTimestamp = Math.floor(deadline.getTime() / 1000);
@@ -76,12 +73,9 @@ export async function createGoalOnChain({
     }
   );
 
+
   console.log("Transaction submitted!", transactionResponse);
 
-
-  // console.log("Transaction submitted! Hash:", transactionResponse.hash);
-
-  // --- Wait for Confirmation & Extract Event Data ---
   const receipt = await transactionResponse.wait();
 
   if (receipt.status !== 1) {
@@ -89,9 +83,9 @@ export async function createGoalOnChain({
   }
 
   let contractGoalId: string = receipt.hash; // Default to transaction hash
-console.log("Transaction confirmed! Receipt:", receipt);
+  console.log("Transaction confirmed! Receipt:", receipt);
   // Parse logs to find the GoalCreated event and extract uniqueId
-  const goalFactoryInterface = new ethers.Interface(abis.GoalFactory);
+  const goalFactoryInterface = new ethers.Interface(goalFactoryArtifact.abi);
   const goalCreatedEvent = receipt.logs
     .map(log => {
       try {
@@ -101,7 +95,8 @@ console.log("Transaction confirmed! Receipt:", receipt);
       }
     })
     .find(parsedLog => parsedLog?.name === "GoalCreated");
-
+  console.log(goalFactoryInterface, "goalFactoryInterface");
+  console.log(goalCreatedEvent, "goalCreatedEvent");
   if (goalCreatedEvent && goalCreatedEvent.args && goalCreatedEvent.args.uniqueId) {
     contractGoalId = goalCreatedEvent.args.uniqueId.toString(); // Convert BigInt to string
     console.log("Extracted Goal ID from contract event:", contractGoalId);
