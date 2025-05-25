@@ -13,6 +13,7 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { getRefereeGoals, FetchedGoal } from "@/lib/api/getRefereeGoals";
 import { ethers } from "ethers";
 import { setGoalMetOnChain } from "@/lib/contracts/contractsInteractions/setGoalMetOnChain";
+import { markGoalAsComplete } from "@/lib/api/markGoalAsComplete";
 
 import {
   Table,
@@ -70,7 +71,7 @@ export default function RefereeGoalsPage() {
   };
 
   const handleSetGoalMet = async (contract_goal_id: number, refereeAddress: string, status: string) => {
-   console.log(contract_goal_id)
+    console.log(contract_goal_id)
     if (!signer || !walletAddress) {
       toast({
         title: "Error",
@@ -100,11 +101,19 @@ export default function RefereeGoalsPage() {
 
     setIsSubmitting(true);
     try {
-      const receipt = await setGoalMetOnChain({
-        contract_goal_id: contract_goal_id,
-        signer: signer,
-      });
-console.log(receipt)
+      // const receipt = await setGoalMetOnChain({
+      //   contract_goal_id: contract_goal_id,
+      //   signer: signer,
+      // });
+      // console.log(receipt)
+
+      const dbUpdate = await markGoalAsComplete(
+        contract_goal_id,
+        'updated by referee'
+        // receipt.hash
+      );
+      console.log("Goal updated successfully:", dbUpdate);
+
       toast({
         title: "Success!",
         description: `Goal ${contract_goal_id} marked as met. Funds will be transferred. Transaction: ${receipt.hash}`,
@@ -298,7 +307,7 @@ console.log(receipt)
                               onClick={() => handleSetGoalMet(goal.contract_goal_id, goal.referee_address, goal.status)}
                               disabled={isSubmitting}
                             >
-                              {isSubmitting ? "Marking Met..." : "Mark Met"}
+                              {isSubmitting ? "Marking as complete..." : "Mark Complete"}
                             </Button>
                           )}
                           <Button

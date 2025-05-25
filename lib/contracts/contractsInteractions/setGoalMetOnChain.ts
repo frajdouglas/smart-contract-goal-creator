@@ -17,7 +17,7 @@ export async function setGoalMetOnChain({
     if (!signer) {
         throw new Error("Wallet signer is not available. Please connect and sign in.");
     }
-console.log(deployed.address); // NEW LOG
+    console.log(deployed.address); // NEW LOG
     // --- Contract Instantiation ---
     const goalFactoryContract = new Contract(
         deployed.address,
@@ -37,7 +37,11 @@ console.log(deployed.address); // NEW LOG
         );
 
         console.log("SetGoalMet transaction submitted! TransactionResponse:", transactionResponse); // EXISTING LOG
+        const receipt = await transactionResponse.wait();
 
+        if (receipt.status !== 1) {
+            throw new Error("Blockchain transaction failed (reverted on-chain).");
+        }
         // ... (rest of your function) ...
 
     } catch (error: any) {

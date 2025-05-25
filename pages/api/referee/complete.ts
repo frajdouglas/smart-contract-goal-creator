@@ -6,13 +6,13 @@ const JWT_SECRET = process.env.JWT_SECRET!;
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
 
-    if (req.method !== 'GET') {
+    if (req.method !== 'POST') {
         return res.status(405).json({ message: 'Method Not Allowed' });
     }
 
-    const { goalId, transactionHash } = req.body;
+    const { contract_goal_id, transactionHash } = req.body;
 
-    if (!goalId || !transactionHash) {
+    if (!contract_goal_id || !transactionHash) {
         return res.status(400).json({ message: 'Goal ID and transaction hash are required.' });
     }
 
@@ -39,7 +39,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const { data: goal, error: fetchError } = await supabaseServer
             .from('goals')
             .select('status, referee_address')
-            .eq('id', goalId)
+            .eq('contract_goal_id', contract_goal_id)
             .single();
 
         if (fetchError || !goal) {
@@ -50,8 +50,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (goal.referee_address.toLowerCase() !== lowercasedUserWalletAddress) {
             return res.status(403).json({ message: 'Unauthorized: Only the assigned referee can mark this goal complete.' });
         }
-
-        if (goal.status !== 0) {
+        
+        if (goal.status !== '0') {
             return res.status(409).json({ message: `Goal cannot be marked complete. Current status: ${goal.status}.` });
         }
 
@@ -61,7 +61,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 status: 1, // '1' for "Referee marked as met"
                 transaction_hash: transactionHash // Overwrites the existing hash
             })
-            .eq('id', goalId)
+            .eq('contract_goal_id', contract_goal_id)
             .select()
             .single();
 
