@@ -1,5 +1,3 @@
-// src/lib/contracts/contractsInteractions/setGoalMetOnChain.ts
-
 import { ethers, Contract, Signer } from 'ethers';
 import deployed from "./localhost.json";
 import goalFactoryArtifact from "./GoalFactory.json";
@@ -17,8 +15,7 @@ export async function setGoalMetOnChain({
     if (!signer) {
         throw new Error("Wallet signer is not available. Please connect and sign in.");
     }
-    console.log(deployed.address); // NEW LOG
-    // --- Contract Instantiation ---
+
     const goalFactoryContract = new Contract(
         deployed.address,
         goalFactoryArtifact.abi,
@@ -27,7 +24,6 @@ export async function setGoalMetOnChain({
     console.log("GoalFactory Contract instance created:", goalFactoryContract); // NEW LOG
     console.log("Contract Address:", goalFactoryContract.address); // NEW LOG
     console.log("Signer address used for contract:", await signer.getAddress()); // NEW LOG
-
 
     try {
         console.log("Attempting to call setGoalMet on contract..."); // NEW LOG
