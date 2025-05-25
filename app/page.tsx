@@ -246,6 +246,12 @@ export default function HomePage({ recentGoals = [] }: HomePageProps): React.Rea
                 <Link href="/goals">View All Goals</Link>
               </Button>
             </CardFooter>
+             <CardFooter className="flex justify-between">
+              <Button variant="outline" asChild>
+                <Link href="/claim-escrow">Claim Escrow</Link>
+              </Button>
+              
+            </CardFooter>
           </Card>
         </div>
 
