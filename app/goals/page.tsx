@@ -2,7 +2,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import Link from "next/link";
+// We no longer need Link if the 'View' button changes to expand/collapse
+// import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +38,8 @@ export default function GoalsPage() {
 
   // State to manage the current filter, defaults to "all"
   const [currentFilter, setCurrentFilter] = useState<GoalFilter>("all");
+  // --- NEW STATE: To track which row is expanded ---
+  const [expandedGoalId, setExpandedGoalId] = useState<string | null>(null);
 
   // Helper functions for status text and badge styling
   const getStatusText = (status: string) => {
@@ -123,6 +126,11 @@ export default function GoalsPage() {
   // Handle filter button clicks - simply updates the state
   const handleFilterChange = (filter: GoalFilter) => {
     setCurrentFilter(filter);
+  };
+
+  // --- NEW FUNCTION: To toggle expanded row ---
+  const toggleExpand = (goalId: string) => {
+    setExpandedGoalId(prevId => (prevId === goalId ? null : goalId));
   };
 
   // --- Loading and Error States ---
@@ -213,8 +221,9 @@ export default function GoalsPage() {
                     <TableHead>Title</TableHead>
                     <TableHead>Creator</TableHead>
                     <TableHead>Referee</TableHead>
-                    <TableHead>Success Recipient</TableHead> {/* Added Success Recipient Column Header */}
-                    <TableHead>Failure Recipient</TableHead> {/* Added Failure Recipient Column Header */}
+                    {/* These columns will now be in the expanded view */}
+                    {/* <TableHead>Success Recipient</TableHead> */}
+                    {/* <TableHead>Failure Recipient</TableHead> */}
                     <TableHead>Stake</TableHead>
                     <TableHead>Deadline</TableHead>
                     <TableHead>Status</TableHead>
@@ -223,37 +232,69 @@ export default function GoalsPage() {
                 </TableHeader>
                 <TableBody>
                   {filteredGoals.map((goal) => (
-                    <TableRow key={goal.id}>
-                      <TableCell className="font-medium">{goal.title}</TableCell>
-                      <TableCell>
-                        {shortenAddress(goal.creator_address)}
-                      </TableCell>
-                      <TableCell>
-                        {shortenAddress(goal.referee_address)}
-                      </TableCell>
-                      {/* Added Success Recipient Cell */}
-                      <TableCell>
-                        {shortenAddress(goal.success_recipient_address)}
-                      </TableCell>
-                      {/* Added Failure Recipient Cell */}
-                      <TableCell>
-                        {shortenAddress(goal.failure_recipient_address)}
-                      </TableCell>
-                      <TableCell>{goal.stake_amount} ETH</TableCell>
-                      <TableCell>
-                        {goal.expiry_date ? new Date(goal.expiry_date).toLocaleDateString() : "N/A"}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={`text-white ${getStatusBadgeVariant(goal.status)}`}>
-                          {getStatusText(goal.status)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href={`/goals/${goal.id}`}>View</Link>
-                        </Button>
-                      </TableCell>
-                    </TableRow>
+                    // --- Use React.Fragment for conditional row rendering ---
+                    <React.Fragment key={goal.id}>
+                      <TableRow>
+                        <TableCell className="font-medium">{goal.title}</TableCell>
+                        <TableCell>
+                          {shortenAddress(goal.creator_address)}
+                        </TableCell>
+                        <TableCell>
+                          {shortenAddress(goal.referee_address)}
+                        </TableCell>
+                        {/* These cells are now moved to the expanded view */}
+                        {/* <TableCell>
+                          {shortenAddress(goal.success_recipient_address)}
+                        </TableCell>
+                        <TableCell>
+                          {shortenAddress(goal.failure_recipient_address)}
+                        </TableCell> */}
+                        <TableCell>{goal.stake_amount} ETH</TableCell>
+                        <TableCell>
+                          {goal.expiry_date ? new Date(goal.expiry_date).toLocaleDateString() : "N/A"}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={`text-white ${getStatusBadgeVariant(goal.status)}`}>
+                            {getStatusText(goal.status)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {/* --- UPDATED BUTTON for expansion --- */}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => toggleExpand(goal.id)}
+                          >
+                            {expandedGoalId === goal.id ? "Hide Details" : "View Details"}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                      {/* --- CONDITIONAL ROW FOR DETAILS --- */}
+                      {expandedGoalId === goal.id && (
+                        <TableRow>
+                          {/* `colSpan` should match the number of <TableHead> elements (now 7) */}
+                          <TableCell colSpan={7} className="py-4 px-6 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                              <div>
+                                <p className="font-semibold mb-1">Full Details:</p>
+                                <p><strong>Goal ID:</strong> <span className="font-mono text-xs">{goal.id}</span></p>
+                                <p><strong>Goal Hash:</strong> <span className="font-mono text-xs">{shortenAddress(goal.goal_hash)}</span></p>
+                                {/* Added break-words for description wrapping */}
+                                <p className="break-words"><strong>Description:</strong> {goal.description || 'N/A'}</p>
+                                <p><strong>Success Recipient:</strong> <span className="font-mono text-xs">{shortenAddress(goal.success_recipient_address)}</span></p>
+                                <p><strong>Failure Recipient:</strong> <span className="font-mono text-xs">{shortenAddress(goal.failure_recipient_address)}</span></p>
+                              </div>
+                              <div>
+                                <p className="font-semibold mb-1">Timestamps:</p>
+                                <p><strong>Created On:</strong> {goal.creation_timestamp ? new Date(goal.creation_timestamp).toLocaleString() : 'N/A'}</p>
+                                <p><strong>Deadline (Local):</strong> {goal.expiry_date ? new Date(goal.expiry_date).toLocaleString() : "N/A"}</p>
+                                {/* Add more details as needed from your FetchedGoal type */}
+                              </div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </React.Fragment>
                   ))}
                 </TableBody>
               </Table>
