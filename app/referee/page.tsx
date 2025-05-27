@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/components/providers/auth-provider";
 import { getRefereeGoals, FetchedGoal } from "@/lib/api/getRefereeGoals";
 import { ethers } from "ethers";
-import { setGoalMetOnChain } from "@/lib/contracts/contractsInteractions/setGoalMetOnChain";
+import { setGoalMetOnChain } from "@/lib/contracts/setGoalMetOnChain";
 import { markGoalAsComplete } from "@/lib/api/markGoalAsComplete";
 
 import {

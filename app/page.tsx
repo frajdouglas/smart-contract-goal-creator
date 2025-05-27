@@ -1,24 +1,20 @@
-// src/app/page.tsx
 "use client";
 
 import type React from "react";
 import Link from "next/link";
-import { useEffect, useState } from "react"; // Import useState
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-// import { GoalList } from "@/components/goal-list"; // No longer needed, rendering directly
 import { ConnectWallet } from "@/components/connect-wallet";
-// import { ConnectWalletButton } from "@/components/ui/connectWalletButton"; // Not used in provided code
 import { Badge } from "@/components/ui/badge";
 import { upsertProfile } from "@/lib/api/upsertProfile";
 import { useAuth } from "@/components/providers/auth-provider";
 import { getGoals, FetchedGoal } from "@/lib/api/getGoals";
-import { useToast } from "@/hooks/use-toast"; // For toast notifications
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // For error display
-import { AlertCircle } from "lucide-react"; // Icon for Alert
-import { ethers } from "ethers"; // For checksumming addresses
+import { useToast } from "@/hooks/use-toast";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react"; 
+import { ethers } from "ethers";
 
-// Import shadcn/ui Table components
 import {
   Table,
   TableBody,
@@ -29,38 +25,34 @@ import {
 } from "@/components/ui/table";
 
 interface HomePageProps {
-  recentGoals?: FetchedGoal[]; // Changed type to FetchedGoal
+  recentGoals?: FetchedGoal[];
 }
 
 export default function HomePage({ recentGoals = [] }: HomePageProps): React.ReactNode {
   const { walletAddress, isAuthenticated, isWalletConnecting } = useAuth();
   const { toast } = useToast();
 
-  const [userGoals, setUserGoals] = useState<FetchedGoal[]>([]); // State for goals fetched by current user
-  const [isLoadingGoals, setIsLoadingGoals] = useState(true); // Loading state for goals
-  const [goalsError, setGoalsError] = useState<string | null>(null); // Error state for goals fetching
+  const [userGoals, setUserGoals] = useState<FetchedGoal[]>([]);
+  const [isLoadingGoals, setIsLoadingGoals] = useState(true); 
+  const [goalsError, setGoalsError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isAuthenticated) {
-      // Fetch or upsert profile
       const fetchOrCreateProfile = async () => {
         try {
           const response = await upsertProfile();
           console.log("Profile upserted:", response.profile);
         } catch (error) {
           console.error("Error upserting profile:", error);
-          // You might want to show a toast here for profile errors
         }
       };
       fetchOrCreateProfile();
 
-      // Fetch user's goals
       const fetchUserGoals = async () => {
         setIsLoadingGoals(true);
         setGoalsError(null);
         try {
           const response = await getGoals();
-          // Filter for active goals (status 0: Pending)
           console.log("Fetched user goals:", response.goals);
           const activeGoals = response.goals.filter(goal => goal.status === '0');
           setUserGoals(activeGoals);
@@ -82,14 +74,12 @@ export default function HomePage({ recentGoals = [] }: HomePageProps): React.Rea
       };
       fetchUserGoals();
     } else {
-      // Clear goals if not authenticated
       setUserGoals([]);
       setIsLoadingGoals(false);
       setGoalsError("Sign in to view your goals.");
     }
-  }, [walletAddress, isAuthenticated, toast]); // Dependencies for useEffect
+  }, [walletAddress, isAuthenticated, toast]);
 
-  // Helper function to get status text
   const getStatusText = (status: string) => {
     switch (status) {
       case '0': return "Pending";
@@ -100,7 +90,6 @@ export default function HomePage({ recentGoals = [] }: HomePageProps): React.Rea
     }
   };
 
-  // Helper function to get status badge variant (adjust Tailwind classes as needed)
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case '0': return "bg-blue-500 hover:bg-blue-600"; // Pending
@@ -205,7 +194,7 @@ export default function HomePage({ recentGoals = [] }: HomePageProps): React.Rea
               )}
 
               {!isLoadingGoals && !goalsError && userGoals.length > 0 && (
-                <div className="overflow-x-auto"> {/* Add overflow for smaller screens */}
+                <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>

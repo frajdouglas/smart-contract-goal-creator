@@ -1,4 +1,3 @@
-// src/app/goals/page.tsx
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -14,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/components/providers/auth-provider";
 import { getFailureRecipientGoals, FetchedGoal } from "@/lib/api/getFailureRecipientGoals";
 import { ethers } from "ethers"; // Import ethers for address checksumming and shortening
-import { setGoalFailedOnChain } from "@/lib/contracts/contractsInteractions/setGoalFailedOnChain";
+import { setGoalFailedOnChain } from "@/lib/contracts/setGoalFailedOnChain";
 
 import {
   Table,
@@ -288,9 +287,6 @@ export default function GoalsPage() {
                     <TableHead>Title</TableHead>
                     <TableHead>Creator</TableHead>
                     <TableHead>Referee</TableHead>
-                    {/* These columns will now be in the expanded view */}
-                    {/* <TableHead>Success Recipient</TableHead> */}
-                    {/* <TableHead>Failure Recipient</TableHead> */}
                     <TableHead>Stake</TableHead>
                     <TableHead>Deadline</TableHead>
                     <TableHead>Status</TableHead>
@@ -299,7 +295,6 @@ export default function GoalsPage() {
                 </TableHeader>
                 <TableBody>
                   {filteredGoals.map((goal) => (
-                    // --- Use React.Fragment for conditional row rendering ---
                     <React.Fragment key={goal.id}>
                       <TableRow>
                         <TableCell className="font-medium">{goal.title}</TableCell>
@@ -309,13 +304,6 @@ export default function GoalsPage() {
                         <TableCell>
                           {shortenAddress(goal.referee_address)}
                         </TableCell>
-                        {/* These cells are now moved to the expanded view */}
-                        {/* <TableCell>
-                          {shortenAddress(goal.success_recipient_address)}
-                        </TableCell>
-                        <TableCell>
-                          {shortenAddress(goal.failure_recipient_address)}
-                        </TableCell> */}
                         <TableCell>{goal.stake_amount} ETH</TableCell>
                         <TableCell>
                           {goal.expiry_date ? new Date(goal.expiry_date).toLocaleDateString() : "N/A"}
