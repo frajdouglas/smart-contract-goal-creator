@@ -31,6 +31,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <title>Smart Contract Goal Creator</title>
+        <link rel="icon" href="/ethFavicon.png" />
+      </head>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <MetaMaskProvider sdkOptions={sdkOptions} debug={false}>
