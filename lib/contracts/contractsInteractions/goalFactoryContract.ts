@@ -1,5 +1,5 @@
 import { ethers } from "ethers";
-import deployed from "./localhost.json";
+import deployed from "./contractAddress.json";
 import goalFactoryArtifact from "./GoalFactory.json";
 import { useAuth } from "@/components/providers/auth-provider";
 

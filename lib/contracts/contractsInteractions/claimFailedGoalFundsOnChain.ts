@@ -1,5 +1,5 @@
 import { ethers, Contract, Signer } from 'ethers';
-import deployed from "./localhost.json";
+import deployed from "./contractAddress.json";
 import goalFactoryArtifact from "./GoalFactory.json";
 
 interface ClaimFailedGoalFundsParams {

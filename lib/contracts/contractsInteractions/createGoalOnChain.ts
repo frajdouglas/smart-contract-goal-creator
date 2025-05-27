@@ -1,5 +1,5 @@
 import { ethers, Contract, Signer } from 'ethers';
-import deployed from "./localhost.json";
+import deployed from "./contractAddress.json";
 import goalFactoryArtifact from "./GoalFactory.json";
 
 interface CreateGoalOnChainArgs {
@@ -103,10 +103,13 @@ console.log("Converted Deadline (ISO String):", new Date(deadlineTimestamp * 100
       .find(parsedLog => parsedLog?.name === "GoalCreated");
     console.log(goalFactoryInterface, "goalFactoryInterface");
     console.log(goalCreatedEvent, "goalCreatedEvent");
-    if (goalCreatedEvent && goalCreatedEvent.args && goalCreatedEvent.args.uniqueId) {
-      contractGoalId = goalCreatedEvent.args.uniqueId.toString(); // Convert BigInt to string
-      console.log("Extracted Goal ID from contract event:", contractGoalId);
-    } else {
+    if (goalCreatedEvent && goalCreatedEvent.args && goalCreatedEvent.args[0] !== undefined) {
+          console.log(goalCreatedEvent.args, "goalCreatedEvent.args");
+          console.log(goalCreatedEvent.args[0], "goalCreatedEvent.args[0]");
+
+    contractGoalId = goalCreatedEvent.args[0].toString(); // Access by index 0
+    console.log("Extracted Goal ID from contract event:", contractGoalId);
+} else {
       console.warn("GoalCreated event not found in transaction receipt. Using transaction hash as goal ID.");
     }
 
