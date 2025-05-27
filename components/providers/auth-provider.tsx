@@ -21,9 +21,11 @@ type AuthContextType = {
   isWalletConnecting: boolean;
   signer: ethers.Signer | null;
   provider: ethers.BrowserProvider | null;
-};
+}
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const CHAIN_ID_HARDHAT_LOCAL = 31337;
+const CHAIN_ID_SEPOLIA = 11155111;
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -69,6 +71,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (window.ethereum && account && connected) {
         try {
           const browserProvider = new ethers.BrowserProvider(window.ethereum);
+          const network = await browserProvider.getNetwork();
+
+          if (!network || network.chainId === 0n) {
+            throw new Error("MetaMask provider could not determine network.");
+          }
+          if (Number(network.chainId) !== CHAIN_ID_HARDHAT_LOCAL && Number(network.chainId) !== CHAIN_ID_SEPOLIA) {
+            throw new Error(`Unsupported network chain ID: ${network.chainId}. Please connect to Hardhat Local or Sepolia.`);
+          }
+          let detectedNetworkName: string;
+          if (Number(network.chainId) === CHAIN_ID_HARDHAT_LOCAL) {
+            detectedNetworkName = "Local";
+          } else if (Number(network.chainId) === CHAIN_ID_SEPOLIA) {
+            detectedNetworkName = "Sepolia";
+          } else {
+            throw new Error(`Unsupported network chain ID: ${Number(network.chainId)}. Please connect to Hardhat Local or Sepolia.`);
+          }
+
           setCurrentProvider(browserProvider);
           const signerInstance = await browserProvider.getSigner(account);
           setCurrentSigner(signerInstance);
@@ -176,7 +195,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isWalletConnecting,
     signer: currentSigner,
     provider: currentProvider
-  };
+    };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
