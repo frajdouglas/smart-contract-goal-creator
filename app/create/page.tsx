@@ -3,7 +3,6 @@
 import type React from "react"
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -17,8 +16,6 @@ import { useAuth } from "@/components/providers/auth-provider"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 import DOMPurify from 'dompurify'; // Still needed here for final sanitization before sending data
-
-// Import AlertDialog components from shadcn/ui
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,61 +26,50 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-
-// Import validation functions and types from your new validation file
 import { validateField, validateForm, GoalFormData, FormErrors } from "@/lib/validation";
 
 export default function CreateGoalPage() {
   const { isAuthenticated, walletAddress, userAddress, signer, isWalletConnecting } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
-
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showConfirmationDialog, setShowConfirmationDialog] = useState(false)
   const [formData, setFormData] = useState<GoalFormData>({
-    title: "test",
-    description: "test",
+    title: "",
+    description: "",
     deadline: new Date(),
-    stake: "0.001",
-    refereeAddress: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
-    successRecipientAddress: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-    failureRecipientAddress: "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
+    stake: "",
+    refereeAddress: "",
+    successRecipientAddress: "",
+    failureRecipientAddress: "",
   })
-  // State for form validation errors, initialized as empty
   const [formErrors, setFormErrors] = useState<FormErrors>({})
 
-  // Effect to automatically set the success recipient to the connected wallet address
-  // This runs once when walletAddress becomes available and if the field is empty
+
   useEffect(() => {
     if (walletAddress && formData.successRecipientAddress === "") {
       setFormData((prev) => ({ ...prev, successRecipientAddress: walletAddress }));
     }
   }, [walletAddress, formData.successRecipientAddress]);
 
-  // Handler for changes in input fields (excluding DatePicker)
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    // As user types, clear the error for this field
     setFormErrors((prev) => ({ ...prev, [name]: undefined }));
   };
 
-  // Handler for DatePicker changes
   const handleDateChange = (date: Date | undefined) => {
     if (date) {
       setFormData((prev) => ({ ...prev, deadline: date }));
       setFormErrors((prev) => ({ ...prev, deadline: undefined })); // Clear error on valid date selection
     } else {
-      // If date is cleared/undefined, set a default (e.g., current date) and an error
       setFormData((prev) => ({ ...prev, deadline: new Date() }));
       setFormErrors((prev) => ({ ...prev, deadline: "Deadline is required." }));
     }
   };
 
-  // Handler for when an input field loses focus (onBlur event)
   const handleBlur = (name: keyof GoalFormData) => {
     const value = formData[name];
-    // Use the extracted validateField function, passing walletAddress for referee validation
     const error = validateField(name, value, walletAddress);
     setFormErrors((prev) => ({ ...prev, [name]: error })); // Update errors state for specific field
   };
@@ -109,9 +95,8 @@ export default function CreateGoalPage() {
     e.preventDefault();
 
     // Perform a full form validation using the extracted function
-    // const { isValid, errors } = validateForm(formData, walletAddress);
-    // setFormErrors(errors); // Update the errors state to display all errors
-    let isValid = true;
+    const { isValid, errors } = validateForm(formData, walletAddress);
+    setFormErrors(errors); // Update the errors state to display all errors
 
     if (!isValid) {
       toast({
@@ -141,13 +126,11 @@ export default function CreateGoalPage() {
       return;
     }
 
-    // If all checks pass, open the confirmation dialog
     setShowConfirmationDialog(true);
   };
 
-  // Handler for confirming the goal creation and staking ETH (triggered from AlertDialog)
   const handleConfirmCreateGoal = async () => {
-    setIsSubmitting(true); // Set submitting state to disable buttons and show loading
+    setIsSubmitting(true);
 
     try {
       // Apply final XSS sanitization to all string inputs before sending to blockchain/DB
@@ -170,8 +153,8 @@ export default function CreateGoalPage() {
         signer: signer!, // 'signer' is guaranteed non-null due to prior checks
       });
 
-      console.log("Blockchain transaction confirmed:", receipt);
-      console.log("Extracted Contract Goal ID:", contractGoalId);
+      // console.log("Blockchain transaction confirmed:", receipt);
+      // console.log("Extracted Contract Goal ID:", contractGoalId);
 
 
       const goal = await createGoal({
@@ -183,6 +166,9 @@ export default function CreateGoalPage() {
         failureRecipientAddress: sanitizedFailureRecipientAddress,
         stakeAmount: formData.stake,
         contractGoalId: contractGoalId, 
+        // contractGoalId : '11111',
+                // transactionHash: 'example',
+
         transactionHash: receipt.hash,
       });
       console.log("Goal created successfully:", goal);
