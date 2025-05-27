@@ -373,8 +373,7 @@ export default function CreateGoalPage() {
                 Cancel
               </Button>
               {/* The submit button is disabled if a submission is in progress OR if the form is not valid */}
-              {/* <Button type="submit" disabled={isSubmitting || !isFormValid()}> */}
-              <Button type="submit">
+              <Button type="submit" disabled={isSubmitting || !isFormValid()}>
 
                 Create & Stake ETH
               </Button>
