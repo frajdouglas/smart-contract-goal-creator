@@ -141,7 +141,6 @@ export default function CreateGoalPage() {
       const sanitizedFailureRecipientAddress = DOMPurify.sanitize(formData.failureRecipientAddress);
 
       // Phase 1: Create the goal on the blockchain via contract interaction
-      console.log(formData.stake)
       
       const { receipt, contractGoalId } = await createGoalOnChain({
         description: sanitizedDescription,
@@ -153,8 +152,8 @@ export default function CreateGoalPage() {
         signer: signer!, // 'signer' is guaranteed non-null due to prior checks
       });
 
-      // console.log("Blockchain transaction confirmed:", receipt);
-      // console.log("Extracted Contract Goal ID:", contractGoalId);
+      console.log("Blockchain transaction confirmed:", receipt);
+      console.log("Extracted Contract Goal ID:", contractGoalId);
 
 
       const goal = await createGoal({
@@ -166,20 +165,14 @@ export default function CreateGoalPage() {
         failureRecipientAddress: sanitizedFailureRecipientAddress,
         stakeAmount: formData.stake,
         contractGoalId: contractGoalId, 
-        // contractGoalId : '11111',
-                // transactionHash: 'example',
-
         transactionHash: receipt.hash,
       });
-      console.log("Goal created successfully:", goal);
 
       toast({
         title: "Goal created successfully!",
         description: "Your ETH has been staked in the escrow contract and saved to our database.",
       });
 
-      // Redirect to the newly created goal's detail page
-      // router.push(`/goals/${goal.id}`);
     } catch (error: any) {
       console.error("Error creating goal:", error);
       let errorMessage = "Please try again.";
@@ -241,10 +234,8 @@ export default function CreateGoalPage() {
                   name="title"
                   placeholder="E.g., Complete 30 days of coding"
                   value={formData.title}
-                  // value={'temptest'}
-
                   onChange={handleChange}
-                  onBlur={() => handleBlur('title')} // Validation on blur
+                  onBlur={() => handleBlur('title')} 
                   required
                 />
                 {formErrors.title && (
@@ -259,10 +250,8 @@ export default function CreateGoalPage() {
                   name="description"
                   placeholder="Describe your goal in detail, including how it will be verified"
                   value={formData.description}
-                  // value={'temptest'}
-
                   onChange={handleChange}
-                  onBlur={() => handleBlur('description')} // Validation on blur
+                  onBlur={() => handleBlur('description')}
                   required
                 />
                 {formErrors.description && (
@@ -289,10 +278,8 @@ export default function CreateGoalPage() {
                     min="0.001"
                     placeholder="0.5"
                     value={formData.stake}
-                    // value={0.01}
-
                     onChange={handleChange}
-                    onBlur={() => handleBlur('stake')} // Validation on blur
+                    onBlur={() => handleBlur('stake')}
                     required
                   />
                   {formErrors.stake && (
@@ -301,7 +288,6 @@ export default function CreateGoalPage() {
                 </div>
               </div>
 
-              {/* Referee Wallet Address Field */}
               <div className="space-y-2">
                 <Label htmlFor="refereeAddress">Referee Wallet Address</Label>
                 <Input
@@ -309,10 +295,8 @@ export default function CreateGoalPage() {
                   name="refereeAddress"
                   placeholder="0x..."
                   value={formData.refereeAddress}
-                  // value={'0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC'}
-
                   onChange={handleChange}
-                  onBlur={() => handleBlur('refereeAddress')} // Validation on blur
+                  onBlur={() => handleBlur('refereeAddress')}
                   required
                 />
                 <p className="text-sm text-muted-foreground">
@@ -323,7 +307,6 @@ export default function CreateGoalPage() {
                 )}
               </div>
 
-              {/* Success Recipient Address Field */}
               <div className="space-y-2">
                 <Label htmlFor="successRecipientAddress">Success Recipient Address</Label>
                 <Input
@@ -331,10 +314,8 @@ export default function CreateGoalPage() {
                   name="successRecipientAddress"
                   placeholder="0x..."
                   value={formData.successRecipientAddress}
-                  // value={'0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'}
-
                   onChange={handleChange}
-                  onBlur={() => handleBlur('successRecipientAddress')} // Validation on blur
+                  onBlur={() => handleBlur('successRecipientAddress')} 
                   required
                 />
                 <p className="text-sm text-muted-foreground">
@@ -345,14 +326,12 @@ export default function CreateGoalPage() {
                 )}
               </div>
 
-              {/* Failure Recipient Address Field */}
               <div className="space-y-2">
                 <Label htmlFor="failureRecipientAddress">Failure Recipient Address</Label>
                 <Input
                   id="failureRecipientAddress"
                   name="failureRecipientAddress"
                   placeholder="0x..."
-                  // value={'0x70997970C51812dc3A010C7d01b50e0d17dc79C8'}
                   value={formData.failureRecipientAddress}
 
                   onChange={handleChange}
@@ -372,9 +351,7 @@ export default function CreateGoalPage() {
               <Button type="button" variant="outline" onClick={() => router.push("/")}>
                 Cancel
               </Button>
-              {/* The submit button is disabled if a submission is in progress OR if the form is not valid */}
               <Button type="submit" disabled={isSubmitting || !isFormValid()}>
-
                 Create & Stake ETH
               </Button>
             </CardFooter>
@@ -382,7 +359,6 @@ export default function CreateGoalPage() {
         </Card>
       </div>
 
-      {/* Confirmation Dialog (AlertDialog from shadcn/ui) */}
       <AlertDialog open={showConfirmationDialog} onOpenChange={setShowConfirmationDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -390,7 +366,6 @@ export default function CreateGoalPage() {
             <AlertDialogDescription className="space-y-2">
               <p>Please review the details below before proceeding. Once confirmed, your ETH will be staked on the blockchain.</p>
               <ul className="list-disc list-inside text-sm mt-2 space-y-1">
-                {/* Sanitize data for display in the dialog for an extra layer of safety */}
                 <li><strong>Goal Title:</strong> {DOMPurify.sanitize(formData.title)}</li>
                 <li><strong>Stake Amount:</strong> {formData.stake} ETH</li>
                 <li><strong>Deadline:</strong> {formData.deadline.toLocaleDateString()}</li>

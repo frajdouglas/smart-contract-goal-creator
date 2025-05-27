@@ -42,7 +42,6 @@ export default async function upsert(req: NextApiRequest, res: NextApiResponse) 
 
         // If no row was found (PGRST116 is the error code for "no rows found in single()"), then insert.
         if (selectError && selectError.code === 'PGRST116') {
-            console.log('Profile not found, inserting new profile for:', lowercasedWalletAddress);
             const { data: newProfile, error: insertError } = await supabaseServer
                 .from('profiles')
                 .insert({ wallet_address: lowercasedWalletAddress })

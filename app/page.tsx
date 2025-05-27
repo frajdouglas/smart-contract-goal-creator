@@ -41,7 +41,6 @@ export default function HomePage({ recentGoals = [] }: HomePageProps): React.Rea
       const fetchOrCreateProfile = async () => {
         try {
           const response = await upsertProfile();
-          console.log("Profile upserted:", response.profile);
         } catch (error) {
           console.error("Error upserting profile:", error);
         }
@@ -53,7 +52,6 @@ export default function HomePage({ recentGoals = [] }: HomePageProps): React.Rea
         setGoalsError(null);
         try {
           const response = await getGoals();
-          console.log("Fetched user goals:", response.goals);
           const activeGoals = response.goals.filter(goal => goal.status === '0');
           setUserGoals(activeGoals);
           toast({

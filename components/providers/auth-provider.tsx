@@ -154,7 +154,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const signature = await currentSigner.signMessage(newNonce.nonce);
-      console.log("Message Signature:", signature);
 
       const verifyResponse = await verifySignature(account, newNonce.nonce, signature);
       if (verifyResponse?.token) {

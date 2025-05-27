@@ -71,7 +71,6 @@ export default function RefereeGoalsPage() {
   };
 
   const handleSetGoalMet = async (contract_goal_id: number, refereeAddress: string, status: string) => {
-    console.log(contract_goal_id)
     if (!signer || !walletAddress) {
       toast({
         title: "Error",

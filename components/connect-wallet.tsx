@@ -11,8 +11,6 @@ export function ConnectWallet() {
   const { isAuthenticated,walletAddress, connectWallet, disconnectWallet, signIn, signOut, isSignInLoading, isWalletConnecting } = useAuth()
   const [error, setError] = useState<string | null>(null)
 
-  console.log(isAuthenticated, "isAuthenticated")
-
   const formatAddress = (address: string) => {
     return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`
   }

@@ -75,7 +75,6 @@ export default function GoalsPage() {
   };
 
   const handleSetGoalFailed = async (contract_goal_id: number, failure_recipient_address: string, status: string) => {
-    console.log(contract_goal_id)
     if (!signer || !walletAddress) {
       toast({
         title: "Error",
@@ -105,27 +104,23 @@ export default function GoalsPage() {
 
     setIsSubmitting(true);
     try {
-      // const receipt = await setGoalMetOnChain({
-      //   contract_goal_id: contract_goal_id,
-      //   signer: signer,
-      // });
-      // console.log(receipt)
+      const receipt = await setGoalMetOnChain({
+        contract_goal_id: contract_goal_id,
+        signer: signer,
+      });
 
       const dbUpdate = await markGoalAsFailed(
         contract_goal_id,
         'updated by failure recipient',
         // receipt.hash
       );
-      console.log("Goal updated successfully:", dbUpdate);
 
       toast({
         title: "Success!",
         description: `Goal ${contract_goal_id} marked as failed. Funds will be transferred. Transaction: ${receipt.hash}`,
         variant: "default",
       });
-      // Refresh the goal list after successful action
-      // const response = await getRefereeGoals();
-      // setAllGoals(response.goals);
+
     } catch (err: any) {
       console.error("Failed to mark goal as met:", err);
       toast({
@@ -139,7 +134,6 @@ export default function GoalsPage() {
   };
 
 
-  // Effect to fetch all goals
   useEffect(() => {
     const fetchGoals = async () => {
       if (!isAuthenticated) {
@@ -174,7 +168,6 @@ export default function GoalsPage() {
     fetchGoals();
   }, [isAuthenticated, toast]);
 
-  // Effect to filter goals whenever allGoals or currentFilter changes
   useEffect(() => {
     let filtered: FetchedGoal[] = [];
     if (currentFilter === "all") {
@@ -187,9 +180,8 @@ export default function GoalsPage() {
       filtered = allGoals.filter(goal => goal.status === '5');
     }
     setFilteredGoals(filtered);
-  }, [allGoals, currentFilter]); // Depend on allGoals and currentFilter
+  }, [allGoals, currentFilter]); 
 
-  // Handle filter button clicks - simply updates the state
   const handleFilterChange = (filter: GoalFilter) => {
     setCurrentFilter(filter);
   };

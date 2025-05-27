@@ -46,21 +46,17 @@ export async function createGoalOnChain({
     signer
   );
 
-  // --- Prepare Transaction Arguments ---
-  console.log(stake)
-  console.log(signer, "signer")
-
   const escrowAmount = ethers.parseEther(stake);
   const hashedGoalDescription = ethers.keccak256(ethers.toUtf8Bytes(description));
   const deadlineTimestamp = Math.floor(deadline.getTime() / 1000);
 
-  console.log("Preparing to send createGoal transaction...");
-  console.log("Referee Address:", refereeAddress);
-  console.log("Success Recipient:", successRecipientAddress);
-  console.log("Failure Recipient:", failureRecipientAddress);
-  console.log("Stake Amount (Wei):", escrowAmount.toString());
-  console.log("Hashed Description:", hashedGoalDescription);
-console.log("Converted Deadline (ISO String):", new Date(deadlineTimestamp * 1000).toISOString())
+  //   console.log("Preparing to send createGoal transaction...");
+  //   console.log("Referee Address:", refereeAddress);
+  //   console.log("Success Recipient:", successRecipientAddress);
+  //   console.log("Failure Recipient:", failureRecipientAddress);
+  //   console.log("Stake Amount (Wei):", escrowAmount.toString());
+  //   console.log("Hashed Description:", hashedGoalDescription);
+  // console.log("Converted Deadline (ISO String):", new Date(deadlineTimestamp * 1000).toISOString())
 
   try {
 
@@ -78,7 +74,7 @@ console.log("Converted Deadline (ISO String):", new Date(deadlineTimestamp * 100
     );
 
 
-    console.log("Transaction submitted!", transactionResponse);
+    // console.log("Transaction submitted!", transactionResponse);
 
     const receipt = await transactionResponse.wait();
 
@@ -88,7 +84,7 @@ console.log("Converted Deadline (ISO String):", new Date(deadlineTimestamp * 100
 
     let contractGoalId: string
 
-    console.log("Transaction confirmed! Receipt:", receipt);
+    // console.log("Transaction confirmed! Receipt:", receipt);
 
     // Parse logs to find the GoalCreated event and extract uniqueId
     const goalFactoryInterface = new ethers.Interface(goalFactoryArtifact.abi);
@@ -101,31 +97,27 @@ console.log("Converted Deadline (ISO String):", new Date(deadlineTimestamp * 100
         }
       })
       .find(parsedLog => parsedLog?.name === "GoalCreated");
-    console.log(goalFactoryInterface, "goalFactoryInterface");
-    console.log(goalCreatedEvent, "goalCreatedEvent");
-    if (goalCreatedEvent && goalCreatedEvent.args && goalCreatedEvent.args[0] !== undefined) {
-          console.log(goalCreatedEvent.args, "goalCreatedEvent.args");
-          console.log(goalCreatedEvent.args[0], "goalCreatedEvent.args[0]");
 
-    contractGoalId = goalCreatedEvent.args[0].toString(); // Access by index 0
-    console.log("Extracted Goal ID from contract event:", contractGoalId);
-} else {
+    if (goalCreatedEvent && goalCreatedEvent.args && goalCreatedEvent.args[0] !== undefined) {
+
+      contractGoalId = goalCreatedEvent.args[0].toString(); // Access by index 0
+    } else {
       console.warn("GoalCreated event not found in transaction receipt. Using transaction hash as goal ID.");
     }
 
     return { receipt, contractGoalId };
   }
-  catch (error: any) { // Use 'any' or more specific type for error
+  catch (error: any) { 
     console.error("Error creating goal on chain:", error);
-    if (error.reason) { // Ethers.js often adds a 'reason' property for reverts
+    if (error.reason) { 
       console.error("Revert Reason:", error.reason);
     }
-    if (error.data && error.data.message) { // For more detailed RPC errors
+    if (error.data && error.data.message) { 
       console.error("RPC Error Message:", error.data.message);
     }
-    if (error.code) { // Ethers.js error codes
+    if (error.code) {
       console.error("Ethers.js Error Code:", error.code);
     }
-    throw error; // Re-throw so calling function can handle it
+    throw error; 
   }
 }
